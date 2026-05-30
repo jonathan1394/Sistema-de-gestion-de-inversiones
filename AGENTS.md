@@ -14,7 +14,11 @@ Private crypto investment app focused on disciplined trading. All source under `
 # Run from project root
 python -m scripts.download_historical --symbol BTCUSDT --interval 1h --start-ms <ms> --end-ms <ms> [--paginate]
 python -m scripts.run_backtest_ma --symbol BTCUSDT --interval 1h --fast 20 --slow 50 --capital 1000
+python -m scripts.run_backtest --symbol BTCUSDT --interval 1h --strategy ma --fast 10 --slow 30 --capital 1000
+python -m scripts.run_paper_trading --symbol BTCUSDT --interval 1h --strategy ma --fast 20 --slow 50
+python -m scripts.run_prospecting --symbols BTCUSDT,ETHUSDT,SOLUSDT --interval 1d
 python -m scripts.compare_backtests --files ./path/to/metrics.json ...
+python -m scripts.compare_strategies --symbols BTCUSDT,ETHUSDT --intervals 1h,4h --strategies ma,rsi,trend
 
 # Quality gate (MANDATORY before any commit)
 python -m quality.quality_agent --check-all

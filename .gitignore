@@ -31,9 +31,13 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
+# Local runtime artifacts
+data/
+
 # Reports
 # Keep the reports structure but ignore generated data
 reports/agent_logs/
+reports/
 
 # Config local overrides
 config/settings.local.yaml

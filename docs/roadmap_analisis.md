@@ -17,20 +17,24 @@ El proyecto cuenta con los siguientes modulos funcionales:
 | Journal de trading | Funcional | `app/ai/journal_analyzer.py` |
 | Paper trading | Funcional | `app/paper_trading/simulator.py`, `virtual_portfolio.py` |
 | Alertas | Funcional | `app/alerts/engine.py`, `app/alerts/channels.py` |
-| Dashboard (Streamlit) | Parcial | `app/dashboard/main.py` + paginas en `app/dashboard/pages/` |
+| Dashboard (Streamlit) | Completo | `app/dashboard/main.py` + todas las paginas en `app/dashboard/pages/` |
 | Ejecucion/Seguridad | Completo | `app/execution/safety_checks.py`, `order_manager.py` |
 | Sistema de calidad | Completo | `quality/` con gates y validadores |
 
-### Gaps Detectados
+### Estado de Implementación del Roadmap
 
-1. **Prospectos no visible en menu**: `app/dashboard/pages/prospects.py` existe pero no esta en `PAGES` de `main.py`.
-2. **Pesos de scoring hardcodeados**: `app/prospecting/scoring.py` usa pesos fijos en vez de leer de `settings.yaml`.
-3. **Portfolio en memoria**: El paper trading usa `st.session_state`, se pierde al cerrar sesion.
-4. **Sin vista consolidada de analisis de mercado**: No hay pagina dedicada a resumir mercado por activo.
-5. **Sin ranking automatico de activos**: El screener funciona pero no genera ranking visible periodicamente.
-6. **Sin recomendacion clara de inversion**: Solo hay score numerico, falta accion "Invertir / Vigilar / Evitar".
-7. **Sin comparacion multi-timeframe**: Cada estrategia corre en un solo timeframe.
-8. **Sin persistencia de operaciones paper**: No se guardan trades historicos en SQLite.
+La mayoría de los elementos del roadmap original han sido implementados:
+
+✅ **Prospectos visibles en menu** - Integrado en `app/dashboard/main.py`  
+✅ **Pesos de scoring configurables** - Leídos de `settings.yaml` en `app/prospecting/scoring.py`  
+✅ **Persistencia de paper trading** - Implementada con tablas `paper_trades` y `paper_portfolio`  
+✅ **Vista de analisis de mercado** - `app/dashboard/pages/market_analysis.py` existe y funciona  
+✅ **Ranking automatico de activos** - Implementado en el flujo de `app/prospecting/screener.py` y visualizado en `app/dashboard/pages/prospects.py`  
+✅ **Sistema de recomendación "Invertir/Vigilar/Evitar"** - Implementado con umbrales configurables  
+✅ **Comparación multi-timeframe** - Integrada en el análisis de mercado  
+✅ **Persistencia de operaciones paper** - Guardadas en SQLite vía `app/paper_trading/storage.py`
+
+Algunos elementos avanzados están en progreso o planificados para fases futuras.
 
 ---
 
