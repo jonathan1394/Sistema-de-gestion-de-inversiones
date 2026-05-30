@@ -1,3 +1,5 @@
+"""Public Binance API client for fetching market klines with retry logic."""
+
 from __future__ import annotations
 
 import time
@@ -9,17 +11,13 @@ from app.config import BinanceConfig
 
 
 class BinanceClient:
+    """Read-only client for Binance public API endpoints."""
+
     def __init__(self, config: BinanceConfig) -> None:
         self._config = config
 
-    def get_klines(
-        self,
-        symbol: str,
-        interval: str,
-        start_time_ms: int | None = None,
-        end_time_ms: int | None = None,
-        limit: int = 1000,
-    ) -> list[list[Any]]:
+    def get_klines(self, symbol: str, interval: str, start_time_ms: int | None = None, end_time_ms: int | None = None, limit: int = 1000) -> list[list[Any]]:
+        """Fetch candlestick kline data from Binance with automatic retries."""
         params: dict[str, Any] = {
             "symbol": symbol.upper(),
             "interval": interval,

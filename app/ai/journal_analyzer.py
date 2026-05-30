@@ -96,7 +96,39 @@ def analyze_trades(trades: list[dict]) -> TradeAnalysis:
     return analysis
 
 
+def _has_revenge_pattern(pnls: list[float], flags: BehaviorFlags) -> None:
+    for i in range(1, len(pnls)):
+        if pnls[i - 1] < -2.0 and pnls[i] > 0:
+            flags.revenge_trading = True
+            flags.details.append(f"Trade {i}: Loss of {pnls[i-1]:.1f}% followed by immediate trade")
+
+
+def _has_size_increase_after_losses(pnls: list[float], sizes: list[float], flags: BehaviorFlags) -> None:
+    losing_streak = 0
+    for i, pnl in enumerate(pnls):
+        if pnl < 0:
+            losing_streak += 1
+            if losing_streak >= 3 and i + 1 < len(sizes) and sizes[i + 1] > sizes[i] * 1.2:
+                flags.increasing_size_after_loss = True
+                flags.details.append(f"Increasing position size after {losing_streak} consecutive losses")
+                return
+            continue
+        losing_streak = 0
+
+
+def _has_early_closing_pattern(trades_data: list[dict], flags: BehaviorFlags) -> None:
+    hold_times = [t.get("hold_bars", 0) for t in trades_data if t.get("hold_bars") is not None]
+    if len(hold_times) <= 5:
+        return
+    avg_hold = sum(hold_times) / len(hold_times)
+    very_short = sum(1 for h in hold_times if h < avg_hold * 0.2)
+    if very_short > len(hold_times) * 0.3:
+        flags.closing_early = True
+        flags.details.append(f"{very_short}/{len(hold_times)} trades held <20% of average hold time")
+
+
 def analyze_behavior(trades: list[dict]) -> BehaviorFlags:
+
     flags = BehaviorFlags()
     if not trades or len(trades) < 3:
         return flags
@@ -104,32 +136,9 @@ def analyze_behavior(trades: list[dict]) -> BehaviorFlags:
     pnls = [t.get("pnl_pct", 0) for t in trades]
     sizes = [abs(t.get("quantity", 0)) for t in trades]
 
-    for i in range(1, len(pnls)):
-        if pnls[i - 1] < -2.0 and pnls[i] > 0:
-            flags.revenge_trading = True
-            flags.details.append(f"Trade {i}: Loss of {pnls[i-1]:.1f}% followed by immediate trade")
-
-    for i in range(2, len(pnls)):
-        if pnls[i - 1] < 0 and pnls[i - 2] < 0 and sizes[i] > sizes[i - 1] * 1.5 if i < len(sizes) else False:
-            pass
-
-    losing_streak = 0
-    for i, p in enumerate(pnls):
-        if p < 0:
-            losing_streak += 1
-            if losing_streak >= 3 and i + 1 < len(sizes) and sizes[i + 1] > sizes[i] * 1.2:
-                flags.increasing_size_after_loss = True
-                flags.details.append(f"Increasing position size after {losing_streak} consecutive losses")
-        else:
-            losing_streak = 0
-
-    hold_times = [t.get("hold_bars", 0) for t in trades if t.get("hold_bars") is not None]
-    if hold_times and len(hold_times) > 5:
-        avg_hold = sum(hold_times) / len(hold_times)
-        very_short = sum(1 for h in hold_times if h < avg_hold * 0.2)
-        if very_short > len(hold_times) * 0.3:
-            flags.closing_early = True
-            flags.details.append(f"{very_short}/{len(hold_times)} trades held <20% of average hold time")
+    _has_revenge_pattern(pnls, flags)
+    _has_size_increase_after_losses(pnls, sizes, flags)
+    _has_early_closing_pattern(trades, flags)
 
     return flags
 

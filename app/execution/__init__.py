@@ -1,3 +1,5 @@
+"""Order execution, validation, and safety checks for Binance trading."""
+
 from app.execution.binance_executor import BinanceExecutor, AccountBalance, OrderInfo, PermissionCheck
 from app.execution.order_manager import OrderManager, OrderRecord, OrderRequest, OrderValidation
 from app.execution.safety_checks import (

@@ -1,3 +1,5 @@
+"""Market data storage and retrieval from SQLite for OHLCV candle data."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -32,12 +34,8 @@ class Candle:
     taker_buy_quote_asset_volume: float
 
 
-def store_klines(
-    connection: sqlite3.Connection,
-    symbol: str,
-    interval: str,
-    klines: list[list],
-) -> int:
+def store_klines(connection: sqlite3.Connection, symbol: str, interval: str, klines: list[list]) -> int:
+    """Store raw Binance kline data into the candles table. Returns rows inserted."""
     rows = [
         (
             symbol.upper(),
@@ -81,15 +79,8 @@ def store_klines(
     return len(rows)
 
 
-def download_and_store(
-    client: BinanceClient,
-    connection: sqlite3.Connection,
-    symbol: str,
-    interval: str,
-    start_time_ms: int | None,
-    end_time_ms: int | None,
-    limit: int,
-) -> DownloadResult:
+def download_and_store(client: BinanceClient, connection: sqlite3.Connection, symbol: str, interval: str, start_time_ms: int | None, end_time_ms: int | None, limit: int) -> DownloadResult:
+    """Download a single batch of klines from Binance and store them."""
     klines = client.get_klines(
         symbol=symbol,
         interval=interval,
@@ -108,16 +99,8 @@ def download_and_store(
     )
 
 
-def download_and_store_paginated(
-    client: BinanceClient,
-    connection: sqlite3.Connection,
-    symbol: str,
-    interval: str,
-    start_time_ms: int | None,
-    end_time_ms: int | None,
-    limit: int,
-    max_batches: int | None = None,
-) -> DownloadResult:
+def download_and_store_paginated(client: BinanceClient, connection: sqlite3.Connection, symbol: str, interval: str, start_time_ms: int | None, end_time_ms: int | None, limit: int, max_batches: int | None = None) -> DownloadResult:
+    """Download klines in multiple batches with automatic pagination."""
     safe_limit = min(limit, 1000)
     step = INTERVAL_MS.get(interval)
     if step is None:
@@ -165,15 +148,8 @@ def download_and_store_paginated(
     )
 
 
-def get_candles(
-    connection: sqlite3.Connection,
-    symbol: str,
-    interval: str,
-    start_time_ms: int | None = None,
-    end_time_ms: int | None = None,
-    limit: int | None = None,
-    desc: bool = False,
-) -> list[Candle]:
+def get_candles(connection: sqlite3.Connection, symbol: str, interval: str, start_time_ms: int | None = None, end_time_ms: int | None = None, limit: int | None = None, desc: bool = False) -> list[Candle]:
+    """Retrieve candles from the database with optional time range and limit."""
     query = """
         SELECT
             symbol,

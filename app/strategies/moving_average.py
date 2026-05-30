@@ -1,3 +1,5 @@
+"""Moving Average Crossover strategy using fast/slow EMA signals."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -6,7 +8,10 @@ from app.strategies.base_strategy import BaseStrategy, Signal, StrategyResult
 
 
 class MovingAverageCrossover(BaseStrategy):
+    """Buy when fast EMA crosses above slow EMA, sell on the reverse."""
+
     def generate_signals(self, data: pd.DataFrame) -> StrategyResult:
+        """Generate BUY/SELL signals on fast EMA crossing slow EMA."""
         fast_period = self.parameters.get("fast_period", 20)
         slow_period = self.parameters.get("slow_period", 50)
         symbol = self.parameters.get("symbol", "UNKNOWN")

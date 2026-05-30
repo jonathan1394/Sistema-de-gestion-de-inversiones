@@ -73,83 +73,42 @@ def _badge(label: str, tone: str) -> str:
     return f'<span class="badge {tone}">{label}</span>'
 
 
-def render() -> None:
-    st.markdown('<div class="page-title">📈 Market Analysis</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="page-subtitle">Analisis multi-timeframe para detectar tendencia, confluencia y niveles clave.</div>',
-        unsafe_allow_html=True,
-    )
-
-    config = load_settings()
-    conn = get_connection(config.database.path)
-
-    col1, col2 = st.columns(2)
-    with col1:
-        symbol = st.text_input("Symbol", value="BTCUSDT").strip().upper()
-    with col2:
-        pass
-
-    if not symbol:
-        st.info("Enter a symbol to begin analysis.")
-        return
-
-    timeframes = ["1h", "4h", "1d"]
-    results = []
-    for tf in timeframes:
-        r = analyze_timeframe(conn, symbol, tf)
-        if r is not None:
-            results.append(r)
-
-    if not results:
-        st.warning(f"No data available for {symbol}. Download historical data first.")
-        return
-
-    confluence = compute_confluence(results)
+def _render_confluence_header(symbol: str, confluence: int) -> None:
     if confluence >= 3:
-        confidence_label = "FUERTE"
+        label = "FUERTE"
     elif confluence >= 2:
-        confidence_label = "MODERADA"
+        label = "MODERADA"
     else:
-        confidence_label = "DEBIL"
-
+        label = "DEBIL"
     tone = "badge-pos" if confluence >= 3 else "badge-warn" if confluence >= 2 else "badge-neg"
-    st.subheader(f"{symbol} — Confluencia: {confluence}/3")
+    st.subheader(f"{symbol} - Confluencia: {confluence}/3")
     st.markdown(
-        f"<div class='legend-row'>{_badge(confidence_label, tone)} {_badge('MOMENTUM', 'badge-neutral')}</div>",
+        f"<div class='legend-row'>{_badge(label, tone)} {_badge('MOMENTUM', 'badge-neutral')}</div>",
         unsafe_allow_html=True,
     )
 
-    if results:
-        latest = results[0] if results[0]["interval"] == "1h" else results[-1]
-        st.metric(
-            "Precio Actual",
-            f"${latest['price']:,.2f}",
-            f"{latest['return_pct']:+.2f}%",
-        )
 
-    st.divider()
-
-    rows = []
-    for r in results:
-        icon = TREND_COLORS.get(r["trend"], "➖")
-        rows.append({
+def _render_tf_table(results: list[dict]) -> None:
+    rows = [
+        {
             "Timeframe": r["interval"],
-            "Trend": f"{icon} {r['trend']}",
+            "Trend": f"{TREND_COLORS.get(r['trend'], '')} {r['trend']}",
             "Return": f"{r['return_pct']:+.2f}%",
             "Volatility": f"{r['volatility']} ({r['volatility_pct']:.2f}%)",
             "RSI": r["rsi"],
             "Volume": r["volume"],
-        })
-
+        }
+        for r in results
+    ]
     st.subheader("Timeframe Comparison")
-    df = pd.DataFrame(rows)
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
+
+def _render_key_levels(results: list[dict]) -> None:
     st.divider()
     st.subheader("Key Levels by Timeframe")
-
     for r in results:
-        with st.expander(f"{r['interval']} — {r['summary_text']}", expanded=(r["interval"] == "4h")):
+        with st.expander(f"{r['interval']} - {r['summary_text']}", expanded=(r["interval"] == "4h")):
             kl = r["key_levels"]
             kcol1, kcol2, kcol3, kcol4 = st.columns(4)
             kcol1.metric("Soporte", f"${kl.get('support', 0):,.2f}")
@@ -157,14 +116,37 @@ def render() -> None:
             kcol3.metric("EMA 20", f"${kl.get('ema_20', 0):,.2f}")
             kcol4.metric("EMA 50", f"${kl.get('ema_50', 0):,.2f}")
 
+
+def render() -> None:
+    st.markdown('<div class="page-title">Market Analysis</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-subtitle">Analisis multi-timeframe para detectar tendencia, confluencia y niveles clave.</div>', unsafe_allow_html=True)
+
+    config = load_settings()
+    conn = get_connection(config.database.path)
+    symbol = st.text_input("Symbol", value="BTCUSDT").strip().upper()
+
+    if not symbol:
+        st.info("Enter a symbol to begin analysis.")
+        return
+
+    results = [r for tf in ["1h", "4h", "1d"] if (r := analyze_timeframe(conn, symbol, tf)) is not None]
+    if not results:
+        st.warning(f"No data available for {symbol}. Download historical data first.")
+        return
+
+    confluence = compute_confluence(results)
+    _render_confluence_header(symbol, confluence)
+
+    latest = results[0] if results[0]["interval"] == "1h" else results[-1]
+    st.metric("Precio Actual", f"${latest['price']:,.2f}", f"{latest['return_pct']:+.2f}%")
+    st.divider()
+    _render_tf_table(results)
+    _render_key_levels(results)
     st.divider()
 
     st.subheader("Multi-Timeframe Summary")
-    if results:
-        summary_parts = []
-        for r in results:
-            summary_parts.append(f"**{r['interval']}**: {r['summary_text']}")
-        st.markdown("  \n".join(summary_parts))
+    summary_parts = [f"**{r['interval']}**: {r['summary_text']}" for r in results]
+    st.markdown("  \n".join(summary_parts))
 
     if st.button("Refresh Analysis", use_container_width=True):
         st.rerun()

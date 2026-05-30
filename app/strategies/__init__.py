@@ -1,3 +1,5 @@
+"""Trading strategies package with built-in signal generators."""
+
 from app.strategies.base_strategy import BaseStrategy, Signal, StrategyResult
 from app.strategies.moving_average import MovingAverageCrossover
 from app.strategies.rsi_strategy import RSIStrategy

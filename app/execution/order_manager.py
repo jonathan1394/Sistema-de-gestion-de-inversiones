@@ -1,3 +1,5 @@
+"""Local order tracking, validation, and status management."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -40,6 +42,8 @@ class OrderRecord:
 
 
 class OrderManager:
+    """Tracks orders locally with validation and status updates."""
+
     def __init__(self) -> None:
         self._orders: list[OrderRecord] = []
         self._next_id = 0
@@ -47,9 +51,11 @@ class OrderManager:
 
     @property
     def orders(self) -> list[OrderRecord]:
+        """Return a copy of all tracked orders."""
         return list(self._orders)
 
     def validate_order(self, request: OrderRequest, capital: float) -> OrderValidation:
+        """Validate an order request against basic constraints."""
         if request.quantity <= 0:
             return OrderValidation(valid=False, reason="Quantity must be positive")
 
@@ -62,12 +68,8 @@ class OrderManager:
 
         return OrderValidation(valid=True)
 
-    def record_order(
-        self,
-        request: OrderRequest,
-        status: str = "pending",
-        error: str = "",
-    ) -> OrderRecord:
+    def record_order(self, request: OrderRequest, status: str = "pending", error: str = "") -> OrderRecord:
+        """Record a new order and return its record."""
         self._next_id += 1
         record = OrderRecord(
             id=f"ord_{self._next_id:06d}",
@@ -84,14 +86,8 @@ class OrderManager:
         self._log.append(f"ORDER: {record.side} {record.quantity} {record.symbol} ({record.status})")
         return record
 
-    def update_order(
-        self,
-        order_id: str,
-        filled_quantity: float = 0.0,
-        avg_fill_price: Optional[float] = None,
-        fees: float = 0.0,
-        status: str = "filled",
-    ) -> None:
+    def update_order(self, order_id: str, filled_quantity: float = 0.0, avg_fill_price: Optional[float] = None, fees: float = 0.0, status: str = "filled") -> None:
+        """Update fill details for an existing order."""
         for order in self._orders:
             if order.id == order_id:
                 order.filled_quantity = filled_quantity
@@ -102,7 +98,9 @@ class OrderManager:
                 break
 
     def get_pending_orders(self) -> list[OrderRecord]:
+        """Return orders that are pending or submitted."""
         return [o for o in self._orders if o.status in ("pending", "submitted")]
 
     def get_recent_orders(self, limit: int = 20) -> list[OrderRecord]:
+        """Return the most recent orders up to limit."""
         return list(reversed(self._orders[-limit:]))

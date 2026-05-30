@@ -19,6 +19,138 @@ from app.strategies import (
 )
 
 
+def _candles_to_dataframe(candles: list) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
+            "open": [c.open for c in candles],
+            "high": [c.high for c in candles],
+            "low": [c.low for c in candles],
+            "close": [c.close for c in candles],
+            "volume": [c.volume for c in candles],
+        }
+    )
+
+
+def _strategy_instance(strategy_name: str, symbol: str, fast: int, slow: int):
+    cls_map = {
+        "MA Crossover": MovingAverageCrossover,
+        "RSI": RSIStrategy,
+        "Trend Following": TrendFollowing,
+        "DCA Dinámico": DCADynamic,
+        "Rebalanceo": RebalanceStrategy,
+    }
+    strat_cls = cls_map[strategy_name]
+    params: dict = {"symbol": symbol}
+    if strategy_name == "MA Crossover":
+        params["fast_period"] = fast
+        params["slow_period"] = slow
+    return strat_cls(parameters=params)
+
+
+def _render_metrics(metrics) -> None:
+    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+    with col_m1:
+        st.metric("ROI", f"{metrics.roi_pct:+.2f}%", border=True)
+    with col_m2:
+        st.metric("Sharpe", f"{metrics.sharpe_ratio:.2f}", border=True)
+    with col_m3:
+        st.metric("Max DD", f"{metrics.max_drawdown_pct:.2f}%", border=True)
+    with col_m4:
+        st.metric("Trades", str(metrics.total_trades), border=True)
+
+    col_n1, col_n2, col_n3, col_n4 = st.columns(4)
+    with col_n1:
+        st.metric("Win Rate", f"{metrics.win_rate:.1f}%", border=True)
+    with col_n2:
+        st.metric("Profit Factor", f"{metrics.profit_factor:.2f}", border=True)
+    with col_n3:
+        st.metric("Capital Final", f"${metrics.final_capital:.2f}", border=True)
+    with col_n4:
+        st.metric("Sortino", f"{metrics.sortino_ratio:.2f}", border=True)
+
+
+def _render_trades_table(result) -> None:
+    with st.expander("Ver todos los trades", expanded=False):
+        if not result.trades:
+            st.info("No se realizaron trades.")
+            return
+        trades_df = pd.DataFrame(
+            [
+                {
+                    "Entry": str(t.entry_time),
+                    "Exit": str(t.exit_time) if t.exit_time else "-",
+                    "Entry $": round(t.entry_price, 2),
+                    "Exit $": round(t.exit_price, 2) if t.exit_price else "-",
+                    "PnL": round(t.pnl, 2),
+                    "PnL%": round(t.pnl_pct * 100, 2),
+                    "Bars": t.hold_bars,
+                    "Exit Reason": t.reason_exit or "-",
+                }
+                for t in result.trades
+            ]
+        )
+        st.dataframe(trades_df, use_container_width=True, hide_index=True)
+
+
+def _render_export_button(result, strategy: str, symbol: str, interval: str) -> None:
+    st.divider()
+    st.subheader("Exportar")
+    trades_json = [
+        {
+            "entry_time": str(t.entry_time),
+            "exit_time": str(t.exit_time),
+            "entry_price": t.entry_price,
+            "exit_price": t.exit_price,
+            "quantity": t.quantity,
+            "pnl": t.pnl,
+            "pnl_pct": t.pnl_pct * 100,
+            "reason_entry": t.reason_entry,
+            "reason_exit": t.reason_exit,
+            "hold_bars": t.hold_bars,
+        }
+        for t in result.trades
+    ]
+    st.download_button(
+        "📥 Descargar trades (JSON)",
+        data=json.dumps(trades_json, indent=2),
+        file_name=f"backtest_{strategy.lower().replace(' ', '_')}_{symbol}_{interval}.json",
+        mime="application/json",
+        use_container_width=True,
+    )
+
+
+def _run_backtest(conn, symbol: str, interval: str, strategy: str, fast: int, slow: int, capital: float) -> None:
+    candles = get_candles(connection=conn, symbol=symbol, interval=interval, limit=1000)
+    if len(candles) < 50:
+        st.warning(f"Solo {len(candles)} velas disponibles. Descarga datos primero.")
+        st.stop()
+
+    data = _candles_to_dataframe(candles)
+    strategy_instance = _strategy_instance(strategy, symbol, fast, slow)
+    engine = BacktestEngine(
+        strategy=strategy_instance,
+        data=data,
+        initial_capital=capital,
+        symbol=symbol,
+        interval=interval,
+    )
+    result = engine.run()
+    metrics = compute_metrics(result)
+
+    st.success(f"Backtest completado - {metrics.total_trades} trades en {len(data)} velas")
+    _render_metrics(metrics)
+
+    st.divider()
+    st.subheader("Curva de Capital")
+    chart_data = result.equity_curve.reset_index()
+    chart_data.columns = ["timestamp", "equity"]
+    st.line_chart(chart_data, x="timestamp", y="equity")
+
+    _render_trades_table(result)
+    _render_export_button(result, strategy, symbol, interval)
+
+
 def render_compare_section(conn, symbol: str, interval: str, capital: float) -> None:
     st.divider()
     st.subheader("Compare All Strategies")
@@ -37,14 +169,7 @@ def render_compare_section(conn, symbol: str, interval: str, capital: float) -> 
                     st.warning(f"Insufficient data ({len(candles)} candles).")
                     return
 
-                data = pd.DataFrame({
-                    "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
-                    "open": [c.open for c in candles],
-                    "high": [c.high for c in candles],
-                    "low": [c.low for c in candles],
-                    "close": [c.close for c in candles],
-                    "volume": [c.volume for c in candles],
-                })
+                data = _candles_to_dataframe(candles)
 
                 result = compare_strategies(
                     data=data,
@@ -127,125 +252,7 @@ def render() -> None:
     if st.button("🚀 Ejecutar Backtest", type="primary", use_container_width=True):
         with st.spinner("Ejecutando backtest..."):
             try:
-                candles = get_candles(
-                    connection=conn,
-                    symbol=symbol,
-                    interval=interval,
-                    limit=1000,
-                )
-
-                if len(candles) < 50:
-                    st.warning(f"Solo {len(candles)} velas disponibles. Descarga datos primero.")
-                    st.stop()
-
-                data = pd.DataFrame({
-                    "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
-                    "open": [c.open for c in candles],
-                    "high": [c.high for c in candles],
-                    "low": [c.low for c in candles],
-                    "close": [c.close for c in candles],
-                    "volume": [c.volume for c in candles],
-                })
-
-                cls_map = {
-                    "MA Crossover": MovingAverageCrossover,
-                    "RSI": RSIStrategy,
-                    "Trend Following": TrendFollowing,
-                    "DCA Dinámico": DCADynamic,
-                    "Rebalanceo": RebalanceStrategy,
-                }
-
-                strat_cls = cls_map[strategy]
-                params: dict = {"symbol": symbol}
-                if strategy == "MA Crossover":
-                    params["fast_period"] = fast
-                    params["slow_period"] = slow
-
-                strategy_instance = strat_cls(parameters=params)
-
-                engine = BacktestEngine(
-                    strategy=strategy_instance,
-                    data=data,
-                    initial_capital=capital,
-                    symbol=symbol,
-                    interval=interval,
-                )
-                result = engine.run()
-                metrics = compute_metrics(result)
-
-                st.success(f"Backtest completado — {metrics.total_trades} trades en {len(data)} velas")
-
-                col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-                with col_m1:
-                    st.metric("ROI", f"{metrics.roi_pct:+.2f}%", border=True)
-                with col_m2:
-                    st.metric("Sharpe", f"{metrics.sharpe_ratio:.2f}", border=True)
-                with col_m3:
-                    st.metric("Max DD", f"{metrics.max_drawdown_pct:.2f}%", border=True)
-                with col_m4:
-                    st.metric("Trades", str(metrics.total_trades), border=True)
-
-                col_n1, col_n2, col_n3, col_n4 = st.columns(4)
-                with col_n1:
-                    st.metric("Win Rate", f"{metrics.win_rate:.1f}%", border=True)
-                with col_n2:
-                    st.metric("Profit Factor", f"{metrics.profit_factor:.2f}", border=True)
-                with col_n3:
-                    st.metric("Capital Final", f"${metrics.final_capital:.2f}", border=True)
-                with col_n4:
-                    st.metric("Sortino", f"{metrics.sortino_ratio:.2f}", border=True)
-
-                st.divider()
-                st.subheader("Curva de Capital")
-                chart_data = result.equity_curve.reset_index()
-                chart_data.columns = ["timestamp", "equity"]
-                st.line_chart(chart_data, x="timestamp", y="equity")
-
-                with st.expander("Ver todos los trades", expanded=False):
-                    if result.trades:
-                        trades_df = pd.DataFrame([
-                            {
-                                "Entry": str(t.entry_time),
-                                "Exit": str(t.exit_time) if t.exit_time else "—",
-                                "Entry $": round(t.entry_price, 2),
-                                "Exit $": round(t.exit_price, 2) if t.exit_price else "—",
-                                "PnL": round(t.pnl, 2),
-                                "PnL%": round(t.pnl_pct * 100, 2),
-                                "Bars": t.hold_bars,
-                                "Exit Reason": t.reason_exit or "—",
-                            }
-                            for t in result.trades
-                        ])
-                        st.dataframe(trades_df, use_container_width=True, hide_index=True)
-                    else:
-                        st.info("No se realizaron trades.")
-
-                st.divider()
-                st.subheader("Exportar")
-                col_e1, col_e2 = st.columns(2)
-                with col_e1:
-                    trades_json = [
-                        {
-                            "entry_time": str(t.entry_time),
-                            "exit_time": str(t.exit_time),
-                            "entry_price": t.entry_price,
-                            "exit_price": t.exit_price,
-                            "quantity": t.quantity,
-                            "pnl": t.pnl,
-                            "pnl_pct": t.pnl_pct * 100,
-                            "reason_entry": t.reason_entry,
-                            "reason_exit": t.reason_exit,
-                            "hold_bars": t.hold_bars,
-                        }
-                        for t in result.trades
-                    ]
-                    st.download_button(
-                        "📥 Descargar trades (JSON)",
-                        data=json.dumps(trades_json, indent=2),
-                        file_name=f"backtest_{strategy.lower().replace(' ', '_')}_{symbol}_{interval}.json",
-                        mime="application/json",
-                        use_container_width=True,
-                    )
+                _run_backtest(conn, symbol, interval, strategy, fast, slow, capital)
 
             except Exception as e:
                 st.error(f"Error ejecutando backtest: {e}")

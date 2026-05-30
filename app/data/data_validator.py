@@ -1,3 +1,5 @@
+"""Candle sequence validation to detect gaps, overlaps, and duplicates."""
+
 from __future__ import annotations
 
 from typing import Iterable
@@ -14,6 +16,7 @@ INTERVAL_MS = {
 
 
 def validate_candle_sequence(open_times: Iterable[int], interval: str) -> list[str]:
+    """Validate that candle open times are sequential with no gaps or duplicates."""
     errors: list[str] = []
     times = list(open_times)
     if not times:

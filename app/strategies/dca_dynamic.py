@@ -1,3 +1,5 @@
+"""Dynamic DCA strategy that increases investment size during deeper drops."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -6,7 +8,10 @@ from app.strategies.base_strategy import BaseStrategy, Signal, StrategyResult
 
 
 class DCADynamic(BaseStrategy):
+    """Periodic dollar-cost averaging with dynamic position sizing based on drawdown."""
+
     def generate_signals(self, data: pd.DataFrame) -> StrategyResult:
+        """Generate periodic DCA BUY signals with dynamic sizing based on drawdown."""
         base_investment = self.parameters.get("base_investment", 100.0)
         interval_days = self.parameters.get("interval_days", 7)
         drop_threshold_1 = self.parameters.get("drop_threshold_1", 0.10)

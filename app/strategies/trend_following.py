@@ -1,3 +1,5 @@
+"""Trend-following strategy combining EMA alignment, RSI, and volume filters."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -7,7 +9,10 @@ from app.strategies.rsi_strategy import compute_rsi
 
 
 class TrendFollowing(BaseStrategy):
+    """Buy when price is above long EMA, EMAs are bullish, RSI is in range, and volume is elevated."""
+
     def generate_signals(self, data: pd.DataFrame) -> StrategyResult:
+        """Generate BUY when trend conditions align, SELL when trend breaks."""
         ema_long = self.parameters.get("ema_long", 200)
         ema_fast = self.parameters.get("ema_fast", 20)
         ema_slow = self.parameters.get("ema_slow", 50)

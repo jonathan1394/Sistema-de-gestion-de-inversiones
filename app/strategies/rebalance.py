@@ -1,3 +1,5 @@
+"""Rebalancing strategy that maintains a target portfolio weight."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -6,7 +8,10 @@ from app.strategies.base_strategy import BaseStrategy, Signal, StrategyResult
 
 
 class RebalanceStrategy(BaseStrategy):
+    """Buy or sell to restore the asset to its target weight within a threshold."""
+
     def generate_signals(self, data: pd.DataFrame) -> StrategyResult:
+        """Generate BUY/SELL signals to restore target portfolio weight."""
         target_pct = self.parameters.get("target_pct", 0.5)
         rebalance_threshold = self.parameters.get("rebalance_threshold", 0.05)
         rebalance_frequency = self.parameters.get("rebalance_frequency", 30)

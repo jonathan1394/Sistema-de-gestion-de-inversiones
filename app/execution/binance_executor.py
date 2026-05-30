@@ -1,3 +1,5 @@
+"""Binance REST API executor with signed requests and retry logic."""
+
 from __future__ import annotations
 
 import hashlib
@@ -43,6 +45,8 @@ class PermissionCheck:
 
 
 class BinanceExecutor:
+    """Handles authenticated Binance API calls with automatic retries."""
+
     def __init__(
         self,
         config: AppConfig,
@@ -62,6 +66,7 @@ class BinanceExecutor:
         self._permissions: Optional[PermissionCheck] = None
 
     def validate_permissions(self) -> PermissionCheck:
+        """Validate API key permissions and check for dangerous settings."""
         if not self._api_key:
             return PermissionCheck(
                 valid=False,
@@ -96,6 +101,7 @@ class BinanceExecutor:
             return PermissionCheck(valid=False, message=f"API validation failed: {e}")
 
     def get_balances(self) -> list[AccountBalance]:
+        """Fetch all non-zero account balances."""
         result = self._signed_get("/api/v3/account")
         balances = []
         for bal in result.get("balances", []):
@@ -111,6 +117,7 @@ class BinanceExecutor:
         return balances
 
     def get_open_orders(self, symbol: str = "") -> list[OrderInfo]:
+        """Fetch open orders, optionally filtered by symbol."""
         params = {}
         if symbol:
             params["symbol"] = symbol.upper()
@@ -118,6 +125,7 @@ class BinanceExecutor:
         return [self._parse_order(o) for o in result]
 
     def get_order_history(self, symbol: str, limit: int = 50) -> list[OrderInfo]:
+        """Fetch historical orders for a symbol."""
         result = self._signed_get("/api/v3/allOrders", {
             "symbol": symbol.upper(),
             "limit": min(limit, 1000),
@@ -125,10 +133,12 @@ class BinanceExecutor:
         return [self._parse_order(o) for o in result]
 
     def get_server_time(self) -> int:
+        """Get Binance server time in milliseconds."""
         resp = self._public_get("/api/v3/time")
         return int(resp["serverTime"])
 
     def check_connectivity(self) -> bool:
+        """Test connectivity to Binance API with a ping."""
         try:
             self._public_get("/api/v3/ping")
             return True
@@ -143,6 +153,7 @@ class BinanceExecutor:
         order_type: str = "MARKET",
         price: Optional[float] = None,
     ) -> Optional[OrderInfo]:
+        """Create a new order after verifying mode and kill switch."""
         if self._mode not in ("real_manual", "real_auto_limited"):
             raise RuntimeError(
                 f"Trading not allowed in mode '{self._mode}'. "

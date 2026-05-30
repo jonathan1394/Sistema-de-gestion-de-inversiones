@@ -1,3 +1,5 @@
+"""RSI-based strategy that buys on oversold and sells on overbought crossovers."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -6,6 +8,7 @@ from app.strategies.base_strategy import BaseStrategy, Signal, StrategyResult
 
 
 def compute_rsi(series: pd.Series, period: int = 14) -> pd.Series:
+    """Compute Relative Strength Index for a price series."""
     delta = series.diff()
     gain = delta.clip(lower=0)
     loss = (-delta).clip(lower=0)
@@ -17,7 +20,10 @@ def compute_rsi(series: pd.Series, period: int = 14) -> pd.Series:
 
 
 class RSIStrategy(BaseStrategy):
+    """Generate signals when RSI crosses oversold/overbought thresholds."""
+
     def generate_signals(self, data: pd.DataFrame) -> StrategyResult:
+        """Generate BUY/SELL signals on RSI crossing oversold/overbought thresholds."""
         rsi_period = self.parameters.get("rsi_period", 14)
         oversold = self.parameters.get("oversold", 30)
         overbought = self.parameters.get("overbought", 70)
