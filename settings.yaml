@@ -1,0 +1,139 @@
+app:
+  mode: analysis
+  kill_switch: true
+
+database:
+  path: ./data/market.db
+
+binance:
+  base_url: https://api.binance.com
+  request_timeout_seconds: 20
+  max_retries: 3
+  retry_delay_seconds: 1.5
+
+capital:
+  initial_usdt: 1000
+
+risk:
+  max_position_size_pct: 0.03
+  max_risk_per_trade_pct: 0.01
+  max_daily_loss_pct: 0.03
+  max_weekly_loss_pct: 0.07
+  max_asset_exposure_pct: 0.35
+  max_altcoin_exposure_pct: 0.40
+  max_consecutive_losses: 5
+  max_trades_per_day: 10
+  default_stop_loss_pct: 0.02
+  min_stop_loss_pct: 0.005
+  max_stop_loss_pct: 0.10
+  require_stop_loss: true
+  altcoin_symbols:
+    - ETHUSDT
+    - SOLUSDT
+
+trading:
+  mode: paper
+  allow_real_trading: false
+  allow_futures: false
+  allow_leverage: false
+  require_stop_loss: true
+  require_take_profit: false
+
+fees:
+  trading_fee_pct: 0.001
+  slippage_pct: 0.001
+
+backtesting:
+  default_commission_pct: 0.001
+  default_slippage_pct: 0.001
+  min_trades_for_validation: 50
+  min_profit_factor: 1.2
+  min_sharpe_ratio: 1.0
+  max_allowed_drawdown_pct: 20.0
+
+strategies:
+  moving_average_crossover:
+    fast_period: 20
+    slow_period: 50
+  rsi_strategy:
+    rsi_period: 14
+    oversold: 30
+    overbought: 70
+  trend_following:
+    ema_long: 200
+    ema_fast: 20
+    ema_slow: 50
+    rsi_period: 14
+    rsi_min: 40
+    rsi_max: 70
+    volume_min: 1.0
+  dca_dynamic:
+    base_investment: 100
+    interval_days: 7
+    drop_threshold_1: 0.10
+    drop_threshold_2: 0.20
+    increase_1: 1.5
+    increase_2: 2.0
+    ema_period: 200
+    reduce_multiplier: 0.5
+  rebalance:
+    target_pct: 0.5
+    rebalance_threshold: 0.05
+    rebalance_frequency: 30
+
+symbols:
+  - BTCUSDT
+  - ETHUSDT
+  - SOLUSDT
+
+timeframes:
+  - 1h
+  - 4h
+  - 1d
+
+alerts:
+  enabled: true
+  check_interval_seconds: 300
+  notifications:
+    desktop: true
+    telegram:
+      enabled: false
+      bot_token: ""
+      chat_id: ""
+  rules:
+    price:
+      enabled: true
+      check_interval_seconds: 1800
+    signal:
+      enabled: true
+      check_interval_seconds: 300
+    risk:
+      enabled: true
+      check_interval_seconds: 600
+      max_drawdown_pct: 20.0
+    daily_summary:
+      enabled: true
+      hour: 23
+      minute: 0
+
+prospecting:
+  enabled: true
+  default_interval: 1d
+  min_candles_for_analysis: 50
+  max_candles_for_analysis: 200
+  auto_download: true
+  scan_on_add: true
+  min_score_for_active: 0.6
+  scoring_weights:
+    trend: 0.30
+    volatility: 0.10
+    volume: 0.15
+    rsi: 0.15
+    return: 0.15
+    signals: 0.15
+  recommendation:
+    invertir_threshold: 0.75
+    vigilat_threshold: 0.60
+    neutral_threshold: 0.40
+    min_confluence_for_invertir: 2
+    min_confluence_for_vigilat: 1

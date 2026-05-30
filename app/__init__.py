@@ -1,0 +1,1 @@
+"""CriptoLab application package."""

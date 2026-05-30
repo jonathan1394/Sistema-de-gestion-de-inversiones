@@ -1,0 +1,39 @@
+# Environment & Secrets
+.env
+config/secrets.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environments
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Reports
+# Keep the reports structure but ignore generated data
+reports/agent_logs/
+
+# Config local overrides
+config/settings.local.yaml

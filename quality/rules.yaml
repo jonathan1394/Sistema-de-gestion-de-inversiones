@@ -1,0 +1,201 @@
+# =============================================================================
+# CriptoLab - Quality Rules Configuration
+# =============================================================================
+# Define los thresholds y reglas que deben cumplir todos los agentes.
+# Cada agente DEBE ejecutar `quality_agent.py --check-all` antes de
+# hacer commit o merge.
+
+project:
+  name: CriptoLab
+  min_python_version: "3.10"
+
+# =============================================================================
+# CODE QUALITY
+# =============================================================================
+code:
+  linting:
+    enabled: true
+    tool: ruff
+    max_warnings: 5
+    max_errors: 0
+    rules:
+      - E201  # whitespace after '('
+      - E302  # expected 2 blank lines
+      - F401  # unused imports
+      - F841  # unused variables
+      - W291  # trailing whitespace
+
+  typing:
+    enabled: true
+    tool: mypy
+    strict_mode: false
+    ignore_missing_imports: true
+    min_coverage_pct: 80
+
+  formatting:
+    enabled: true
+    tool: black
+    max_line_length: 100
+
+  complexity:
+    max_cyclomatic_complexity: 15
+    max_function_length_lines: 80
+    max_file_length_lines: 500
+    max_nesting_depth: 4
+
+  imports:
+    forbid_wildcard: true
+    forbid_relative_deep: 2  # max relative levels e.g. from ..foo import bar
+    group_stdlib_first: true
+
+# =============================================================================
+# TESTING
+# =============================================================================
+testing:
+  required: true
+  framework: pytest
+  min_coverage_pct: 70
+  critical_modules_coverage_pct: 85
+  critical_modules:
+    - risk
+    - execution
+    - backtesting
+  min_tests_per_module: 3
+  must_have_tests_for:
+    - app/risk/position_sizing.py
+    - app/risk/exposure_limits.py
+    - app/risk/stop_loss.py
+    - app/backtesting/engine.py
+    - app/execution/safety_checks.py
+    - app/strategies/base_strategy.py
+    - app/prospecting/db.py
+    - app/prospecting/scoring.py
+
+# =============================================================================
+# SECURITY
+# =============================================================================
+security:
+  secrets_check: true
+  forbidden_patterns:
+    - "api_key"
+    - "api_secret"
+    - "BINANCE_API"
+    - "password"
+    - "secret"
+    - "private_key"
+  fail_on_hardcoded_secrets: true
+  require_env_for_secrets: true
+  require_kill_switch: true
+  require_stop_loss: true
+  max_position_size_pct: 0.03
+  max_daily_loss_pct: 0.03
+
+# =============================================================================
+# DOCUMENTATION
+# =============================================================================
+documentation:
+  required: true
+  min_docstrings_pct: 60
+  require_module_docstrings: true
+  require_function_docstrings: true
+  require_readme: true
+  require_agants_md_reference: true
+
+# =============================================================================
+# PHASE-SPECIFIC GATES
+# =============================================================================
+phases:
+  phase1_data:
+    required_files:
+      - app/data/binance_client.py
+      - app/data/market_data.py
+      - app/data/data_validator.py
+      - app/database/models.py
+      - app/database/connection.py
+    validations:
+      - data_can_download
+      - data_stores_in_sqlite
+      - no_duplicate_candles
+      - validates_missing_data
+      - respects_rate_limits
+
+  phase2_backtesting:
+    required_files:
+      - app/backtesting/engine.py
+      - app/backtesting/metrics.py
+      - app/backtesting/reports.py
+      - app/strategies/moving_average.py
+      - app/strategies/rsi_strategy.py
+    validations:
+      - includes_commissions
+      - includes_slippage
+      - includes_position_sizing
+      - includes_stop_loss
+      - includes_take_profit
+      - configurable_initial_capital
+      - no_lookahead_bias
+      - min_50_trades
+      - profit_factor_gt_1.2
+      - sharpe_gt_1
+
+  phase3_risk:
+    required_files:
+      - app/risk/position_sizing.py
+      - app/risk/stop_loss.py
+      - app/risk/exposure_limits.py
+      - app/risk/circuit_breakers.py
+    validations:
+      - max_position_size_enforced
+      - stop_loss_mandatory
+      - max_daily_loss_block
+      - kill_switch_functional
+      - exposure_limits_enforced
+      - blocks_trades_when_violated
+
+  phase4_paper_trading:
+    required_files:
+      - app/paper_trading/simulator.py
+      - app/paper_trading/virtual_portfolio.py
+      - app/paper_trading/virtual_orders.py
+    validations:
+      - simulates_realtime_prices
+      - tracks_virtual_portfolio
+      - logs_all_orders
+      - compares_expected_vs_actual_price
+      - generates_daily_report
+
+  phase5_dashboard:
+    required_files:
+      - app/dashboard/main.py
+    validations:
+      - shows_capital
+      - shows_pnl
+      - shows_drawdown
+      - shows_exposure
+      - shows_active_signals
+      - shows_system_status
+      - readable_in_30_seconds
+
+  phase6_binance:
+    required_files:
+      - app/execution/binance_executor.py
+      - app/execution/order_manager.py
+      - app/execution/safety_checks.py
+    validations:
+      - readonly_first
+      - api_no_withdrawals
+      - validates_permissions
+      - error_handling_with_retry
+      - logs_all_orders
+      - kill_switch_active
+
+# =============================================================================
+# AGENT BEHAVIOR
+# =============================================================================
+agent:
+  report_enabled: true
+  log_all_actions: true
+  require_self_review: true
+  require_peer_review: false  # enable when team > 1
+  fail_fast: true  # stop on first gate failure
+  max_retries: 3

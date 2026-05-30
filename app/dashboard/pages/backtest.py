@@ -1,0 +1,255 @@
+from __future__ import annotations
+
+import json
+
+import pandas as pd
+import streamlit as st
+
+from app.backtesting import BacktestEngine, compute_metrics
+from app.backtesting.comparator import compare_strategies
+from app.config import load_settings
+from app.data.market_data import get_candles
+from app.database.connection import get_connection
+from app.strategies import (
+    DCADynamic,
+    MovingAverageCrossover,
+    RebalanceStrategy,
+    RSIStrategy,
+    TrendFollowing,
+)
+
+
+def render_compare_section(conn, symbol: str, interval: str, capital: float) -> None:
+    st.divider()
+    st.subheader("Compare All Strategies")
+    st.caption("Ejecuta todas las estrategias sobre el mismo activo y timeframe")
+
+    if st.button("Compare All Strategies", type="primary", use_container_width=True):
+        with st.spinner("Running all strategies..."):
+            try:
+                candles = get_candles(
+                    connection=conn,
+                    symbol=symbol,
+                    interval=interval,
+                    limit=1000,
+                )
+                if len(candles) < 50:
+                    st.warning(f"Insufficient data ({len(candles)} candles).")
+                    return
+
+                data = pd.DataFrame({
+                    "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
+                    "open": [c.open for c in candles],
+                    "high": [c.high for c in candles],
+                    "low": [c.low for c in candles],
+                    "close": [c.close for c in candles],
+                    "volume": [c.volume for c in candles],
+                })
+
+                result = compare_strategies(
+                    data=data,
+                    symbol=symbol,
+                    interval=interval,
+                    initial_capital=capital,
+                    min_trades=0,
+                )
+
+                if not result.strategy_results:
+                    st.warning("No strategies produced results.")
+                    return
+
+                rows = []
+                for sr in result.strategy_results:
+                    m = sr.metrics
+                    roi_mark = "🟢" if m.roi_pct > 0 else "🔴" if m.roi_pct < 0 else "⚪"
+                    rows.append({
+                        "Strategy": sr.strategy_name,
+                        "ROI%": f"{roi_mark} {m.roi_pct:+.2f}%",
+                        "Sharpe": f"{m.sharpe_ratio:.2f}",
+                        "Max DD": f"{m.max_drawdown_pct:.2f}%",
+                        "PF": f"{m.profit_factor:.2f}",
+                        "Win Rate": f"{m.win_rate:.1f}%",
+                        "Trades": m.total_trades,
+                        "Final Cap": f"${m.final_capital:.2f}",
+                        "Valid": "✅" if sr.passed_validation else "⚪",
+                    })
+
+                df = pd.DataFrame(rows)
+                st.dataframe(df, use_container_width=True, hide_index=True)
+                st.caption("ROI con semaforo visual y validacion por estrategia.")
+
+                best = result.best
+                if best:
+                    st.success(
+                        f"Best strategy: **{best.strategy_name}** "
+                        f"(Sharpe {best.metrics.sharpe_ratio:.2f}, "
+                        f"ROI {best.metrics.roi_pct:+.2f}%)"
+                    )
+
+            except Exception as e:
+                st.error(f"Comparison failed: {e}")
+
+
+def render() -> None:
+    st.markdown('<div class="page-title">🔬 Backtesting</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="page-subtitle">Compara estrategias con datos historicos y valida robustez antes de operar.</div>',
+        unsafe_allow_html=True,
+    )
+
+    config = load_settings()
+    conn = get_connection(config.database.path)
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        symbol = st.selectbox("Símbolo", ["BTCUSDT", "ETHUSDT", "SOLUSDT"])
+
+    with col2:
+        interval = st.selectbox("Intervalo", ["4h", "1h", "1d"])
+
+    with col3:
+        strategy = st.selectbox(
+            "Estrategia",
+            ["MA Crossover", "RSI", "Trend Following", "DCA Dinámico", "Rebalanceo"],
+        )
+
+    col_a, col_b, col_c = st.columns(3)
+    with col_a:
+        fast = st.number_input("Periodo rápido", min_value=5, max_value=100, value=20)
+
+    with col_b:
+        slow = st.number_input("Periodo lento", min_value=10, max_value=200, value=50)
+
+    with col_c:
+        capital = st.number_input("Capital inicial", min_value=100, max_value=100000, value=1000, step=100)
+
+    if st.button("🚀 Ejecutar Backtest", type="primary", use_container_width=True):
+        with st.spinner("Ejecutando backtest..."):
+            try:
+                candles = get_candles(
+                    connection=conn,
+                    symbol=symbol,
+                    interval=interval,
+                    limit=1000,
+                )
+
+                if len(candles) < 50:
+                    st.warning(f"Solo {len(candles)} velas disponibles. Descarga datos primero.")
+                    st.stop()
+
+                data = pd.DataFrame({
+                    "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
+                    "open": [c.open for c in candles],
+                    "high": [c.high for c in candles],
+                    "low": [c.low for c in candles],
+                    "close": [c.close for c in candles],
+                    "volume": [c.volume for c in candles],
+                })
+
+                cls_map = {
+                    "MA Crossover": MovingAverageCrossover,
+                    "RSI": RSIStrategy,
+                    "Trend Following": TrendFollowing,
+                    "DCA Dinámico": DCADynamic,
+                    "Rebalanceo": RebalanceStrategy,
+                }
+
+                strat_cls = cls_map[strategy]
+                params: dict = {"symbol": symbol}
+                if strategy == "MA Crossover":
+                    params["fast_period"] = fast
+                    params["slow_period"] = slow
+
+                strategy_instance = strat_cls(parameters=params)
+
+                engine = BacktestEngine(
+                    strategy=strategy_instance,
+                    data=data,
+                    initial_capital=capital,
+                    symbol=symbol,
+                    interval=interval,
+                )
+                result = engine.run()
+                metrics = compute_metrics(result)
+
+                st.success(f"Backtest completado — {metrics.total_trades} trades en {len(data)} velas")
+
+                col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+                with col_m1:
+                    st.metric("ROI", f"{metrics.roi_pct:+.2f}%", border=True)
+                with col_m2:
+                    st.metric("Sharpe", f"{metrics.sharpe_ratio:.2f}", border=True)
+                with col_m3:
+                    st.metric("Max DD", f"{metrics.max_drawdown_pct:.2f}%", border=True)
+                with col_m4:
+                    st.metric("Trades", str(metrics.total_trades), border=True)
+
+                col_n1, col_n2, col_n3, col_n4 = st.columns(4)
+                with col_n1:
+                    st.metric("Win Rate", f"{metrics.win_rate:.1f}%", border=True)
+                with col_n2:
+                    st.metric("Profit Factor", f"{metrics.profit_factor:.2f}", border=True)
+                with col_n3:
+                    st.metric("Capital Final", f"${metrics.final_capital:.2f}", border=True)
+                with col_n4:
+                    st.metric("Sortino", f"{metrics.sortino_ratio:.2f}", border=True)
+
+                st.divider()
+                st.subheader("Curva de Capital")
+                chart_data = result.equity_curve.reset_index()
+                chart_data.columns = ["timestamp", "equity"]
+                st.line_chart(chart_data, x="timestamp", y="equity")
+
+                with st.expander("Ver todos los trades", expanded=False):
+                    if result.trades:
+                        trades_df = pd.DataFrame([
+                            {
+                                "Entry": str(t.entry_time),
+                                "Exit": str(t.exit_time) if t.exit_time else "—",
+                                "Entry $": round(t.entry_price, 2),
+                                "Exit $": round(t.exit_price, 2) if t.exit_price else "—",
+                                "PnL": round(t.pnl, 2),
+                                "PnL%": round(t.pnl_pct * 100, 2),
+                                "Bars": t.hold_bars,
+                                "Exit Reason": t.reason_exit or "—",
+                            }
+                            for t in result.trades
+                        ])
+                        st.dataframe(trades_df, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No se realizaron trades.")
+
+                st.divider()
+                st.subheader("Exportar")
+                col_e1, col_e2 = st.columns(2)
+                with col_e1:
+                    trades_json = [
+                        {
+                            "entry_time": str(t.entry_time),
+                            "exit_time": str(t.exit_time),
+                            "entry_price": t.entry_price,
+                            "exit_price": t.exit_price,
+                            "quantity": t.quantity,
+                            "pnl": t.pnl,
+                            "pnl_pct": t.pnl_pct * 100,
+                            "reason_entry": t.reason_entry,
+                            "reason_exit": t.reason_exit,
+                            "hold_bars": t.hold_bars,
+                        }
+                        for t in result.trades
+                    ]
+                    st.download_button(
+                        "📥 Descargar trades (JSON)",
+                        data=json.dumps(trades_json, indent=2),
+                        file_name=f"backtest_{strategy.lower().replace(' ', '_')}_{symbol}_{interval}.json",
+                        mime="application/json",
+                        use_container_width=True,
+                    )
+
+            except Exception as e:
+                st.error(f"Error ejecutando backtest: {e}")
+                import traceback
+                st.code(traceback.format_exc())
+
+    render_compare_section(conn, symbol, interval, capital)

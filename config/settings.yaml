@@ -1,0 +1,41 @@
+capital:
+  initial_usdt: 1000
+
+risk:
+  max_position_size_pct: 0.03
+  max_risk_per_trade_pct: 0.01
+  max_daily_loss_pct: 0.03
+  max_weekly_loss_pct: 0.07
+  max_asset_exposure_pct: 0.35
+  max_altcoin_exposure_pct: 0.40
+
+trading:
+  mode: paper
+  allow_real_trading: false
+  allow_futures: false
+  allow_leverage: false
+  require_stop_loss: true
+  require_take_profit: false
+
+fees:
+  trading_fee_pct: 0.001
+  slippage_pct: 0.001
+
+symbols:
+  - BTCUSDT
+  - ETHUSDT
+  - SOLUSDT
+
+timeframes:
+  - 1h
+  - 4h
+  - 1d
+
+prospecting:
+  enabled: true
+  default_interval: 1d
+  min_candles_for_analysis: 50
+  max_candles_for_analysis: 200
+  auto_download: true
+  scan_on_add: true
+  min_score_for_active: 0.6
