@@ -1,10 +1,11 @@
+"""Database migrations for core market, prospecting, and paper-trading tables."""
+
 from __future__ import annotations
 
 import sqlite3
 
 
-def run_migrations(connection: sqlite3.Connection) -> None:
-    connection.execute(
+SCHEMA_STATEMENTS = [
         """
         CREATE TABLE IF NOT EXISTS candles (
             symbol TEXT NOT NULL,
@@ -22,15 +23,11 @@ def run_migrations(connection: sqlite3.Connection) -> None:
             taker_buy_quote_asset_volume REAL NOT NULL,
             PRIMARY KEY (symbol, interval, open_time)
         )
-        """
-    )
-    connection.execute(
+        """,
         """
         CREATE INDEX IF NOT EXISTS idx_candles_symbol_interval_time
         ON candles (symbol, interval, open_time)
-        """
-    )
-    connection.execute(
+        """,
         """
         CREATE TABLE IF NOT EXISTS prospects (
             symbol TEXT NOT NULL,
@@ -48,15 +45,11 @@ def run_migrations(connection: sqlite3.Connection) -> None:
             notes TEXT DEFAULT '',
             PRIMARY KEY (symbol, interval)
         )
-        """
-    )
-    connection.execute(
+        """,
         """
         CREATE INDEX IF NOT EXISTS idx_prospects_status_score
         ON prospects (status, score DESC)
-        """
-    )
-    connection.execute(
+        """,
         """
         CREATE TABLE IF NOT EXISTS paper_trades (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,9 +64,7 @@ def run_migrations(connection: sqlite3.Connection) -> None:
             reason TEXT DEFAULT '',
             created_at TEXT NOT NULL
         )
-        """
-    )
-    connection.execute(
+        """,
         """
         CREATE TABLE IF NOT EXISTS paper_portfolio (
             symbol TEXT NOT NULL PRIMARY KEY,
@@ -84,9 +75,7 @@ def run_migrations(connection: sqlite3.Connection) -> None:
             entry_time TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
-        """
-    )
-    connection.execute(
+        """,
         """
         CREATE TABLE IF NOT EXISTS paper_snapshots (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,6 +84,12 @@ def run_migrations(connection: sqlite3.Connection) -> None:
             cash REAL NOT NULL,
             drawdown_pct REAL NOT NULL DEFAULT 0.0
         )
-        """
-    )
+        """,
+    ]
+
+
+def run_migrations(connection: sqlite3.Connection) -> None:
+    """Run all idempotent SQLite migrations required by the application."""
+    for statement in SCHEMA_STATEMENTS:
+        connection.execute(statement)
     connection.commit()

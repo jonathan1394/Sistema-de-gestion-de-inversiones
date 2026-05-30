@@ -1,3 +1,5 @@
+"""Backtesting engine that executes strategy signals over historical data."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -42,6 +44,8 @@ class BacktestResult:
 
 
 class BacktestEngine:
+    """Run a single-strategy backtest with fees and slippage."""
+
     def __init__(
         self,
         strategy: BaseStrategy,
@@ -61,6 +65,7 @@ class BacktestEngine:
         self.interval = interval
 
     def run(self) -> BacktestResult:
+        """Execute backtest loop and return full result object."""
         data = self._prepare_data()
         signal_map = self._build_signal_map(data)
 

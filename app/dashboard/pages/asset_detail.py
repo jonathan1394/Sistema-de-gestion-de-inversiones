@@ -1,3 +1,5 @@
+"""Asset detail dashboard with multi-timeframe and backtest views."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -13,6 +15,7 @@ from app.prospecting.scoring import get_recommendation
 
 
 def analyze_timeframe(conn, symbol: str, interval: str) -> dict | None:
+    """Summarize one timeframe for the selected symbol."""
     candles = get_candles(
         connection=conn, symbol=symbol, interval=interval, limit=200, desc=True,
     )
@@ -48,6 +51,7 @@ TREND_ORDER = {"strong_up": 5, "up": 4, "sideways": 3, "down": 2, "strong_down":
 
 
 def compute_confluence(results: list[dict]) -> int:
+    """Count bullish timeframes from analyzed results."""
     return sum(1 for r in results if TREND_ORDER.get(r.get("trend", "sideways"), 3) >= 4)
 
 
@@ -144,6 +148,7 @@ def _candles_to_df(candles: list) -> pd.DataFrame:
 
 
 def render() -> None:
+    """Render consolidated per-asset analysis and comparison sections."""
     st.markdown('<div class="page-title">Asset Detail</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-subtitle">Vista consolidada de mercado, score, riesgo y backtesting por activo.</div>', unsafe_allow_html=True)
 

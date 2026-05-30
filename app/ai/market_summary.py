@@ -1,3 +1,5 @@
+"""Market summary generation from OHLCV data."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -7,6 +9,8 @@ import pandas as pd
 
 @dataclass
 class MarketCondition:
+    """Qualitative market condition labels and short summary."""
+
     trend: str
     volatility: str
     volume_profile: str
@@ -16,6 +20,8 @@ class MarketCondition:
 
 @dataclass
 class MarketSummary:
+    """Structured summary of price action and derived indicators."""
+
     symbol: str
     period: str
     start_date: str
@@ -32,6 +38,7 @@ class MarketSummary:
 
 
 def _prepare_frame(data: pd.DataFrame) -> pd.DataFrame:
+    """Normalize input data into a sorted datetime-indexed frame."""
     df = data.copy()
     if "timestamp" in df.columns:
         df = df.set_index("timestamp")
@@ -44,6 +51,7 @@ def _prepare_frame(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def _market_trend(close_px: float, ema20: float, ema50: float) -> str:
+    """Classify trend state from close price and EMA alignment."""
     if close_px > ema20 > ema50:
         return "strong_up"
     if close_px > ema50:
@@ -56,6 +64,7 @@ def _market_trend(close_px: float, ema20: float, ema50: float) -> str:
 
 
 def _volatility_label(volatility: float) -> str:
+    """Map volatility value to discrete bucket label."""
     if volatility < 0.5:
         return "low"
     if volatility < 1.5:
@@ -64,6 +73,7 @@ def _volatility_label(volatility: float) -> str:
 
 
 def _rsi_label(rsi: float) -> str:
+    """Map RSI value to overbought/oversold/neutral label."""
     if rsi < 30:
         return "oversold"
     if rsi > 70:
@@ -72,6 +82,7 @@ def _rsi_label(rsi: float) -> str:
 
 
 def _volume_profile(frame: pd.DataFrame) -> str:
+    """Classify latest volume relative to its recent moving average."""
     if "volume" not in frame.columns:
         return "unknown"
     vol_ma = frame["volume"].rolling(20).mean()
@@ -84,6 +95,7 @@ def _volume_profile(frame: pd.DataFrame) -> str:
 
 
 def _summary_parts(trend: str, vol_cond: str, rsi_cond: str, last_rsi: float, ret: float, vol_profile: str) -> list[str]:
+    """Compose sentence fragments for the condition summary."""
     trend_label = "Uptrend" if "up" in trend else "Downtrend" if "down" in trend else "Sideways"
     parts = [f"{trend_label} with {vol_cond} volatility"]
     if rsi_cond != "neutral":
@@ -95,6 +107,7 @@ def _summary_parts(trend: str, vol_cond: str, rsi_cond: str, last_rsi: float, re
 
 
 def _price_stats(df: pd.DataFrame) -> tuple[float, float, float, float, float, float]:
+    """Compute core price and volatility statistics from frame."""
     open_px = float(df.iloc[0]["open"]) if "open" in df.columns else float(df.iloc[0]["close"])
     close_px = float(df.iloc[-1]["close"])
     high_px = float(df["high"].max()) if "high" in df.columns else close_px
@@ -106,6 +119,7 @@ def _price_stats(df: pd.DataFrame) -> tuple[float, float, float, float, float, f
 
 
 def _ema_levels(df: pd.DataFrame, close_px: float) -> tuple[float, float]:
+    """Return latest EMA20 and EMA50 levels."""
     ema_20 = df["close"].ewm(span=20, adjust=False).mean()
     ema_50 = df["close"].ewm(span=50, adjust=False).mean()
     last_ema20 = float(ema_20.iloc[-1]) if len(ema_20) > 0 else close_px
@@ -114,6 +128,7 @@ def _ema_levels(df: pd.DataFrame, close_px: float) -> tuple[float, float]:
 
 
 def _last_rsi(df: pd.DataFrame) -> float:
+    """Compute latest RSI value with EMA smoothing."""
     delta = df["close"].diff()
     gain = delta.clip(lower=0)
     loss = (-delta).clip(lower=0)
@@ -131,6 +146,7 @@ def generate_market_summary(
     symbol: str = "UNKNOWN",
     period: str = "daily",
 ) -> MarketSummary:
+    """Build a structured market summary for a symbol and period."""
     df = _prepare_frame(data)
     open_px, close_px, high_px, low_px, ret, volatility = _price_stats(df)
     avg_volume = float(df["volume"].mean()) if "volume" in df.columns else 0.0
@@ -172,6 +188,7 @@ def generate_market_summary(
 
 
 def format_summary(summary: MarketSummary) -> str:
+    """Render a human-readable text summary from market metrics."""
     lines = []
     lines.append(f"=== Market Summary: {summary.symbol} ({summary.period}) ===")
     lines.append(f"Period: {summary.start_date} → {summary.end_date}")

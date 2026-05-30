@@ -1,3 +1,5 @@
+"""Portfolio dashboard page for manual paper-trading simulation."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -145,6 +147,7 @@ def _reset_portfolio() -> None:
 
 
 def render() -> None:
+    """Render portfolio metrics, positions, and manual trade actions."""
     st.header("💰 Portfolio / Paper Trading")
     st.caption("Simulación de cartera virtual")
 

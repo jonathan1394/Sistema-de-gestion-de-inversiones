@@ -1,3 +1,5 @@
+"""Risk management package exports for sizing, stops, and controls."""
+
 from app.risk.position_sizing import PositionSizeResult, calculate_position_size
 from app.risk.stop_loss import StopLossResult, fixed_percentage, atr_based
 from app.risk.exposure_limits import (

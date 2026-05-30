@@ -1,3 +1,5 @@
+"""SQLite persistence helpers for paper-trading state and history."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -33,6 +35,7 @@ class StoredPosition:
 
 
 def init_portfolio_tables(connection: sqlite3.Connection) -> None:
+    """Create portfolio, trades, and snapshots tables if missing."""
     connection.execute("""
         CREATE TABLE IF NOT EXISTS paper_trades (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,6 +86,7 @@ def record_trade(
     reason: str = "",
     interval: str = "4h",
 ) -> StoredTrade:
+    """Insert one executed trade and return stored row."""
     now = datetime.now(timezone.utc).isoformat()
     cursor = connection.execute(
         """
@@ -103,6 +107,7 @@ def get_trades(
     symbol: str | None = None,
     limit: int = 100,
 ) -> list[StoredTrade]:
+    """Fetch recent trades optionally filtered by symbol."""
     if symbol:
         rows = connection.execute(
             "SELECT * FROM paper_trades WHERE symbol = ? ORDER BY created_at DESC LIMIT ?",
@@ -139,6 +144,7 @@ def upsert_position(
     current_price: float,
     entry_time: str | None = None,
 ) -> StoredPosition:
+    """Insert or update one portfolio position row."""
     now = datetime.now(timezone.utc).isoformat()
     if entry_time is None:
         entry_time = now
@@ -167,6 +173,7 @@ def remove_position(
     connection: sqlite3.Connection,
     symbol: str,
 ) -> bool:
+    """Delete one position by symbol and return success flag."""
     cursor = connection.execute(
         "DELETE FROM paper_portfolio WHERE symbol = ?", (symbol.upper(),)
     )
@@ -175,6 +182,7 @@ def remove_position(
 
 
 def get_all_positions(connection: sqlite3.Connection) -> list[StoredPosition]:
+    """Return all stored portfolio positions."""
     rows = connection.execute("SELECT * FROM paper_portfolio ORDER BY symbol").fetchall()
     return [_row_to_position(r) for r in rows]
 
@@ -197,6 +205,7 @@ def add_snapshot(
     cash: float,
     drawdown_pct: float = 0.0,
 ) -> None:
+    """Persist one portfolio snapshot row."""
     now = datetime.now(timezone.utc).isoformat()
     connection.execute(
         "INSERT INTO paper_snapshots (timestamp, total_value, cash, drawdown_pct) VALUES (?, ?, ?, ?)",
@@ -209,6 +218,7 @@ def get_snapshots(
     connection: sqlite3.Connection,
     limit: int = 500,
 ) -> list[dict[str, Any]]:
+    """Fetch historical snapshots ordered by timestamp."""
     rows = connection.execute(
         "SELECT * FROM paper_snapshots ORDER BY timestamp ASC LIMIT ?", (limit,)
     ).fetchall()

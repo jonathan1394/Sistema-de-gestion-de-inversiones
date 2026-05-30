@@ -1,3 +1,5 @@
+"""Trading journal analytics and behavior insights."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -6,6 +8,8 @@ from typing import Optional
 
 @dataclass
 class TradeAnalysis:
+    """Aggregate trade performance statistics."""
+
     total_trades: int = 0
     win_rate: float = 0.0
     profit_factor: float = 0.0
@@ -20,6 +24,8 @@ class TradeAnalysis:
 
 @dataclass
 class BehaviorFlags:
+    """Behavioral warning flags inferred from trade history."""
+
     revenge_trading: bool = False
     increasing_size_after_loss: bool = False
     closing_early: bool = False
@@ -30,6 +36,8 @@ class BehaviorFlags:
 
 @dataclass
 class StrategyInsight:
+    """High-level weakness and actionable suggestion."""
+
     best_timeframe: str = ""
     best_condition: str = ""
     weakness: str = ""
@@ -38,6 +46,8 @@ class StrategyInsight:
 
 @dataclass
 class JournalReport:
+    """Combined output for journal analysis workflows."""
+
     trade_analysis: TradeAnalysis
     behavior: BehaviorFlags
     insight: StrategyInsight
@@ -45,6 +55,7 @@ class JournalReport:
 
 
 def analyze_trades(trades: list[dict]) -> TradeAnalysis:
+    """Compute performance statistics from raw trade records."""
     if not trades:
         return TradeAnalysis()
 
@@ -97,6 +108,7 @@ def analyze_trades(trades: list[dict]) -> TradeAnalysis:
 
 
 def _has_revenge_pattern(pnls: list[float], flags: BehaviorFlags) -> None:
+    """Detect immediate re-entry pattern after large losses."""
     for i in range(1, len(pnls)):
         if pnls[i - 1] < -2.0 and pnls[i] > 0:
             flags.revenge_trading = True
@@ -104,6 +116,7 @@ def _has_revenge_pattern(pnls: list[float], flags: BehaviorFlags) -> None:
 
 
 def _has_size_increase_after_losses(pnls: list[float], sizes: list[float], flags: BehaviorFlags) -> None:
+    """Detect martingale-like sizing after losing streaks."""
     losing_streak = 0
     for i, pnl in enumerate(pnls):
         if pnl < 0:
@@ -117,6 +130,7 @@ def _has_size_increase_after_losses(pnls: list[float], sizes: list[float], flags
 
 
 def _has_early_closing_pattern(trades_data: list[dict], flags: BehaviorFlags) -> None:
+    """Detect frequent exits much earlier than average hold time."""
     hold_times = [t.get("hold_bars", 0) for t in trades_data if t.get("hold_bars") is not None]
     if len(hold_times) <= 5:
         return
@@ -128,6 +142,7 @@ def _has_early_closing_pattern(trades_data: list[dict], flags: BehaviorFlags) ->
 
 
 def analyze_behavior(trades: list[dict]) -> BehaviorFlags:
+    """Detect risky behavioral patterns from trade sequencing."""
 
     flags = BehaviorFlags()
     if not trades or len(trades) < 3:
@@ -144,6 +159,7 @@ def analyze_behavior(trades: list[dict]) -> BehaviorFlags:
 
 
 def generate_insight(analysis: TradeAnalysis, behavior: BehaviorFlags) -> StrategyInsight:
+    """Generate actionable recommendations from analysis outcomes."""
     insight = StrategyInsight()
 
     if analysis.win_rate < 40:
@@ -182,6 +198,7 @@ def generate_insight(analysis: TradeAnalysis, behavior: BehaviorFlags) -> Strate
 
 
 def generate_journal_report(trades: list[dict]) -> JournalReport:
+    """Assemble a full journal report combining stats, behavior, and insight."""
     if not trades:
         return JournalReport(
             trade_analysis=TradeAnalysis(),

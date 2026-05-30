@@ -1,3 +1,5 @@
+"""Circuit breaker rules to stop trading under adverse conditions."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -25,6 +27,8 @@ class CircuitBreakerResult:
 
 
 class CircuitBreakers:
+    """Stateful guardrail checks for daily activity and losing streaks."""
+
     def __init__(
         self,
         max_daily_loss_pct: float = 0.03,
@@ -44,13 +48,16 @@ class CircuitBreakers:
 
     @property
     def state(self) -> CircuitBreakerState:
+        """Return current breaker state snapshot."""
         return self._state
 
     @property
     def kill_switch_active(self) -> bool:
+        """Return whether manual kill switch is active."""
         return self._state.kill_switch_active
 
     def set_kill_switch(self, active: bool) -> None:
+        """Enable or disable kill switch state."""
         self._state.kill_switch_active = active
 
     def _get_today(self) -> str:
@@ -74,6 +81,7 @@ class CircuitBreakers:
             self._state.last_trade_date = today
 
     def record_trade(self, pnl_pct: float, capital: float) -> None:
+        """Update breaker counters after a completed trade."""
         self._reset_if_new_period()
 
         self._state.trades_today += 1
@@ -86,6 +94,7 @@ class CircuitBreakers:
             self._state.consecutive_losses = 0
 
     def check_trading_allowed(self, capital: float) -> CircuitBreakerResult:
+        """Validate whether new trading is currently allowed."""
         self._reset_if_new_period()
 
         if self._state.kill_switch_active:
@@ -112,4 +121,5 @@ class CircuitBreakers:
         return CircuitBreakerResult(trading_allowed=True, state=self._state)
 
     def can_open_new_position(self, capital: float) -> CircuitBreakerResult:
+        """Compatibility alias for trading-allowed check."""
         return self.check_trading_allowed(capital)

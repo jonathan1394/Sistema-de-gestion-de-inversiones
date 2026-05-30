@@ -1,3 +1,5 @@
+"""Application configuration loading with environment overrides."""
+
 from __future__ import annotations
 
 import os
@@ -36,6 +38,7 @@ def _to_bool(value: str | None, default: bool) -> bool:
 
 
 def load_settings(settings_path: str | Path = "settings.yaml") -> AppConfig:
+    """Load app settings from YAML and env vars into typed config."""
     settings_file = Path(settings_path)
     if not settings_file.exists():
         raise FileNotFoundError(f"Settings file not found: {settings_file}")

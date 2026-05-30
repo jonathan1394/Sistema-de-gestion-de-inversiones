@@ -1,3 +1,5 @@
+"""Alert rule engine for price, signal, and risk notifications."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -19,14 +21,18 @@ class AlertRule:
 
 
 class AlertEngine:
+    """Evaluate registered alert rules and dispatch matches."""
+
     def __init__(self, manager: AlertManager) -> None:
         self._manager = manager
         self._rules: list[AlertRule] = []
 
     def add_rule(self, rule: AlertRule) -> None:
+        """Register one alert rule."""
         self._rules.append(rule)
 
     def tick(self) -> list[Alert]:
+        """Run due rules once and return triggered alerts."""
         now = datetime.now(timezone.utc).timestamp()
         triggered: list[Alert] = []
         for rule in self._rules:
@@ -40,6 +46,7 @@ class AlertEngine:
 
     @property
     def manager(self) -> AlertManager:
+        """Return bound alert manager."""
         return self._manager
 
 
@@ -49,7 +56,9 @@ def price_alert_rule(
     above: Optional[float] = None,
     below: Optional[float] = None,
 ) -> AlertRule:
+    """Create threshold-based price alert rule."""
     def check() -> Optional[Alert]:
+        """Evaluate current price against configured thresholds."""
         price = current_price_fn()
         if above is not None and price >= above:
             return Alert(
@@ -77,9 +86,11 @@ def signal_alert_rule(
     symbol: str,
     signals_fn: Callable[[], list[Signal]],
 ) -> AlertRule:
+    """Create rule that notifies on new actionable signals."""
     _last_count = 0
 
     def check() -> Optional[Alert]:
+        """Emit alert when new BUY/SELL signal appears."""
         nonlocal _last_count
         signals = signals_fn()
         current_count = len(signals)
@@ -105,7 +116,9 @@ def risk_alert_rule(
     drawdown_fn: Callable[[], float],
     max_drawdown: float = 20.0,
 ) -> AlertRule:
+    """Create drawdown risk alert rule with warning and error levels."""
     def check() -> Optional[Alert]:
+        """Evaluate current drawdown against warning/error thresholds."""
         dd = drawdown_fn()
         if dd >= max_drawdown:
             return Alert(

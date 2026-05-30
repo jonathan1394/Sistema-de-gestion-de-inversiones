@@ -1,3 +1,5 @@
+"""Prospecting package exports for scoring, screening, and storage."""
+
 from app.prospecting.db import (
     add_prospect,
     archive_prospect,

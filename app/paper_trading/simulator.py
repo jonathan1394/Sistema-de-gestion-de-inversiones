@@ -1,3 +1,5 @@
+"""Paper-trading simulator wiring strategy, risk, and virtual execution."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -28,6 +30,8 @@ class SimulationResult:
 
 
 class PaperTradingSimulator:
+    """Execute strategy signals on a virtual portfolio with risk controls."""
+
     def __init__(
         self,
         strategy: BaseStrategy,
@@ -49,17 +53,21 @@ class PaperTradingSimulator:
 
     @property
     def portfolio(self) -> VirtualPortfolio:
+        """Return current virtual portfolio state."""
         return self._portfolio
 
     @property
     def trades_executed(self) -> int:
+        """Return number of executed trades."""
         return self._trades_executed
 
     @property
     def trades_rejected(self) -> int:
+        """Return number of rejected trades."""
         return self._trades_rejected
 
     def process_signal(self, signal: Signal, current_price: float) -> None:
+        """Process one signal at current market price."""
         self._portfolio.update_prices({self._symbol: current_price})
 
         if signal.action not in ("BUY", "SELL", "EXIT", "REDUCE"):
@@ -163,6 +171,7 @@ class PaperTradingSimulator:
             self._trades_executed += 1
 
     def get_status(self) -> dict:
+        """Return compact simulator status metrics."""
         return {
             "total_value": round(self._portfolio.total_value, 2),
             "cash": round(self._portfolio.cash, 2),

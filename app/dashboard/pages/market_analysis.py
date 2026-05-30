@@ -1,3 +1,5 @@
+"""Market analysis dashboard page with timeframe confluence."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -10,6 +12,7 @@ from app.database.connection import get_connection
 
 
 def analyze_timeframe(conn, symbol: str, interval: str) -> dict | None:
+    """Build summary metrics for one timeframe if data is sufficient."""
     candles = get_candles(
         connection=conn,
         symbol=symbol,
@@ -52,6 +55,7 @@ TREND_ORDER = {"strong_up": 5, "up": 4, "sideways": 3, "down": 2, "strong_down":
 
 
 def compute_confluence(results: list[dict]) -> int:
+    """Return number of bullish trends across timeframe results."""
     bullish = 0
     for r in results:
         t = r.get("trend", "sideways")
@@ -118,6 +122,7 @@ def _render_key_levels(results: list[dict]) -> None:
 
 
 def render() -> None:
+    """Render market analysis inputs, tables, and key levels."""
     st.markdown('<div class="page-title">Market Analysis</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-subtitle">Analisis multi-timeframe para detectar tendencia, confluencia y niveles clave.</div>', unsafe_allow_html=True)
 

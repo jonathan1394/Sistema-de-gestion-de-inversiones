@@ -1,3 +1,5 @@
+"""Virtual portfolio model used by paper-trading workflows."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -28,6 +30,8 @@ class PortfolioSnapshot:
 
 
 class VirtualPortfolio:
+    """Track cash, positions, PnL, and snapshots for simulation."""
+
     def __init__(self, initial_capital: float = 1000.0) -> None:
         self._initial_capital = initial_capital
         self._cash = initial_capital
@@ -42,20 +46,24 @@ class VirtualPortfolio:
 
     @property
     def cash(self) -> float:
+        """Return available cash balance."""
         return self._cash
 
     @property
     def positions(self) -> dict[str, Position]:
+        """Return copy of open positions map."""
         return dict(self._positions)
 
     @property
     def total_value(self) -> float:
+        """Return cash plus mark-to-market value of positions."""
         return self._cash + sum(
             p.quantity * p.current_price for p in self._positions.values()
         )
 
     @property
     def exposure_pct(self) -> float:
+        """Return invested capital as percentage of total value."""
         tv = self.total_value
         if tv <= 0:
             return 0.0
@@ -63,16 +71,19 @@ class VirtualPortfolio:
 
     @property
     def total_pnl(self) -> float:
+        """Return absolute portfolio PnL from initial capital."""
         return self.total_value - self._initial_capital
 
     @property
     def total_pnl_pct(self) -> float:
+        """Return portfolio PnL percentage from initial capital."""
         if self._initial_capital <= 0:
             return 0.0
         return (self.total_value - self._initial_capital) / self._initial_capital * 100
 
     @property
     def drawdown_pct(self) -> float:
+        """Return current drawdown from peak portfolio value."""
         tv = self.total_value
         if tv > self._peak_value:
             self._peak_value = tv
@@ -82,13 +93,16 @@ class VirtualPortfolio:
 
     @property
     def trade_count(self) -> int:
+        """Return number of recorded trade events."""
         return len(self._trade_history)
 
     @property
     def initial_capital(self) -> float:
+        """Return configured starting capital."""
         return self._initial_capital
 
     def update_prices(self, prices: dict[str, float]) -> None:
+        """Update marked prices and refresh unrealized metrics."""
         now = datetime.now(timezone.utc)
         date_key = now.strftime("%Y-%m-%d")
 
@@ -107,6 +121,7 @@ class VirtualPortfolio:
         self._daily_pnl = self.total_value - self._daily_start_value
 
     def buy(self, symbol: str, quantity: float, price: float, timestamp: Optional[datetime] = None) -> bool:
+        """Execute a virtual buy if enough cash is available."""
         cost = quantity * price
         if cost > self._cash:
             return False
@@ -141,6 +156,7 @@ class VirtualPortfolio:
         return True
 
     def sell(self, symbol: str, quantity: float, price: float, timestamp: Optional[datetime] = None) -> Optional[float]:
+        """Execute a virtual sell and return realized PnL."""
         if symbol not in self._positions:
             return None
 
@@ -169,11 +185,13 @@ class VirtualPortfolio:
         return realized_pnl
 
     def close_position(self, symbol: str, price: float) -> Optional[float]:
+        """Close full position at provided price."""
         if symbol not in self._positions:
             return None
         return self.sell(symbol, self._positions[symbol].quantity, price)
 
     def snapshot(self) -> PortfolioSnapshot:
+        """Capture and store current portfolio snapshot."""
         now = datetime.now(timezone.utc)
         snap = PortfolioSnapshot(
             timestamp=now,
@@ -188,18 +206,23 @@ class VirtualPortfolio:
         return snap
 
     def get_snapshots(self) -> list[PortfolioSnapshot]:
+        """Return recorded snapshots."""
         return list(self._snapshots)
 
     def get_trade_history(self) -> list[dict]:
+        """Return recorded trade history entries."""
         return list(self._trade_history)
 
     def has_position(self, symbol: str) -> bool:
+        """Check if symbol has an open position."""
         return symbol in self._positions and self._positions[symbol].quantity > 0
 
     def get_position(self, symbol: str) -> Optional[Position]:
+        """Return open position for symbol if available."""
         return self._positions.get(symbol)
 
     def reset(self) -> None:
+        """Reset portfolio state to initial conditions."""
         self._cash = self._initial_capital
         self._positions.clear()
         self._trade_history.clear()

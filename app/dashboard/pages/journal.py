@@ -1,3 +1,5 @@
+"""Trading journal dashboard page for uploads and paper-trade review."""
+
 from __future__ import annotations
 
 import json
@@ -101,6 +103,7 @@ def _render_paper_trades_tab(conn) -> None:
 
 
 def render() -> None:
+    """Render journal tabs for uploaded JSON and stored paper trades."""
     st.markdown('<div class="page-title">Trading Journal</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-subtitle">Analisis de historial de trades para detectar patrones y mejorar ejecucion.</div>', unsafe_allow_html=True)
     config = load_settings()

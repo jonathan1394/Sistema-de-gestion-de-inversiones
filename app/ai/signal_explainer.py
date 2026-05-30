@@ -1,3 +1,5 @@
+"""Natural-language explanations for trading signals."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -10,6 +12,8 @@ from app.strategies.base_strategy import Signal
 
 @dataclass
 class SignalExplanation:
+    """Narrative explanation and context for a trading signal."""
+
     signal: Signal
     explanation: str
     context: dict[str, float]
@@ -18,6 +22,7 @@ class SignalExplanation:
 
 
 def _action_explanation(signal: Signal, data: Optional[pd.DataFrame], context: dict[str, float]) -> tuple[str, str]:
+    """Build action-specific explanation text and base strength."""
     action_map = {
         "BUY": lambda: _explain_buy(signal, data, context),
         "SELL": lambda: _explain_sell(signal, data, context),
@@ -33,6 +38,7 @@ def _action_explanation(signal: Signal, data: Optional[pd.DataFrame], context: d
 
 
 def _confidence_strength(confidence: float, current: str) -> str:
+    """Adjust strength label using explicit confidence value."""
     if confidence >= 0.7:
         return "high"
     if confidence <= 0.4:
@@ -41,6 +47,7 @@ def _confidence_strength(confidence: float, current: str) -> str:
 
 
 def _build_price_context(data: Optional[pd.DataFrame], context: dict[str, float]) -> None:
+    """Populate context with current price and volume ratio."""
     if data is None or "close" not in data.columns:
         return
     price = data["close"].iloc[-1] if hasattr(data["close"], "iloc") else float(data["close"])
@@ -54,6 +61,7 @@ def _build_price_context(data: Optional[pd.DataFrame], context: dict[str, float]
 
 
 def _stop_risk_note(signal: Signal, context: dict[str, float]) -> str:
+    """Generate stop-distance risk note and enrich context."""
     if signal.stop_loss is None:
         return ""
     risk_pct = abs(signal.price - signal.stop_loss) / signal.price * 100
@@ -66,6 +74,7 @@ def _stop_risk_note(signal: Signal, context: dict[str, float]) -> str:
 
 
 def _take_profit_context(signal: Signal, context: dict[str, float]) -> None:
+    """Populate take-profit distance percentage in context."""
     if signal.take_profit is None:
         return
     tp_pct = abs(signal.take_profit - signal.price) / signal.price * 100
@@ -76,6 +85,7 @@ def explain_signal(
     signal: Signal,
     data: Optional[pd.DataFrame] = None,
 ) -> SignalExplanation:
+    """Explain a single signal with context, strength, and risk notes."""
     context: dict[str, float] = {}
 
     explanation, strength = _action_explanation(signal, data, context)
@@ -98,6 +108,7 @@ def _explain_buy(
     data: Optional[pd.DataFrame],
     context: dict[str, float],
 ) -> str:
+    """Build explanatory text for BUY signals."""
     parts = [f"BUY signal for {signal.symbol}"]
     parts.append(f"Reason: {signal.reason}")
     parts.append(f"Price: ${signal.price:.2f}")
@@ -130,6 +141,7 @@ def _explain_sell(
     data: Optional[pd.DataFrame],
     context: dict[str, float],
 ) -> str:
+    """Build explanatory text for SELL/exit signals."""
     parts = [f"SELL signal for {signal.symbol}"]
     parts.append(f"Reason: {signal.reason}")
 
@@ -145,4 +157,5 @@ def batch_explain(
     signals: list[Signal],
     data: Optional[pd.DataFrame] = None,
 ) -> list[SignalExplanation]:
+    """Explain a batch of signals using shared optional market data."""
     return [explain_signal(s, data) for s in signals]

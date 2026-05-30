@@ -1,3 +1,5 @@
+"""Backtesting dashboard page for single and comparative runs."""
+
 from __future__ import annotations
 
 import json
@@ -152,6 +154,7 @@ def _run_backtest(conn, symbol: str, interval: str, strategy: str, fast: int, sl
 
 
 def render_compare_section(conn, symbol: str, interval: str, capital: float) -> None:
+    """Render and execute the all-strategies comparison block."""
     st.divider()
     st.subheader("Compare All Strategies")
     st.caption("Ejecuta todas las estrategias sobre el mismo activo y timeframe")
@@ -216,6 +219,7 @@ def render_compare_section(conn, symbol: str, interval: str, capital: float) -> 
 
 
 def render() -> None:
+    """Render backtesting controls, outputs, and strategy comparison."""
     st.markdown('<div class="page-title">🔬 Backtesting</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="page-subtitle">Compara estrategias con datos historicos y valida robustez antes de operar.</div>',

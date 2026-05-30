@@ -1,3 +1,5 @@
+"""Alerts dashboard page for history and configuration visibility."""
+
 from __future__ import annotations
 
 import json
@@ -10,6 +12,7 @@ from app.alerts import Alert, AlertManager, build_alert_manager, HISTORY_FILE
 
 
 def render() -> None:
+    """Render alerts history, filters, and notification settings."""
     st.header("🔔 Alertas y Notificaciones")
     st.caption("Historial de alertas del sistema")
 

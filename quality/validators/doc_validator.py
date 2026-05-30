@@ -29,65 +29,33 @@ class DocValidator:
     def validate_docstrings(self) -> DocValidationResult:
         errors: list[str] = []
         warnings: list[str] = []
-        total_functions = 0
-        documented_functions = 0
-        total_classes = 0
-        documented_classes = 0
-        total_modules = 0
-        documented_modules = 0
+        totals = {
+            "functions": 0,
+            "documented_functions": 0,
+            "classes": 0,
+            "documented_classes": 0,
+            "modules": 0,
+            "documented_modules": 0,
+        }
 
         require_module = self.rules.get("require_module_docstrings", True)
         require_function = self.rules.get("require_function_docstrings", True)
 
         for py_file in self._find_python_files():
-            try:
-                source = py_file.read_text(encoding="utf-8")
-                tree = ast.parse(source)
+            self._validate_file_docstrings(
+                py_file=py_file,
+                require_module=require_module,
+                require_function=require_function,
+                warnings=warnings,
+                totals=totals,
+            )
 
-                total_modules += 1
-                if tree.body and (
-                    isinstance(tree.body[0], ast.Expr)
-                    and isinstance(tree.body[0].value, ast.Constant)
-                    and isinstance(tree.body[0].value.value, str)
-                ):
-                    documented_modules += 1
-                elif require_module and tree.body:
-                    warnings.append(
-                        f"{py_file}: Missing module-level docstring"
-                    )
-
-                for node in ast.walk(tree):
-                    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        total_functions += 1
-                        if (
-                            isinstance(node.body[0], ast.Expr)
-                            and isinstance(node.body[0].value, ast.Constant)
-                            and isinstance(node.body[0].value.value, str)
-                        ):
-                            documented_functions += 1
-                        elif (
-                            require_function
-                            and not node.name.startswith("_")
-                        ):
-                            warnings.append(
-                                f"{py_file}:{node.lineno} "
-                                f"Function '{node.name}' missing docstring"
-                            )
-
-                    elif isinstance(node, ast.ClassDef):
-                        total_classes += 1
-                        if (
-                            isinstance(node.body[0], ast.Expr)
-                            and isinstance(node.body[0].value, ast.Constant)
-                            and isinstance(node.body[0].value.value, str)
-                        ):
-                            documented_classes += 1
-
-            except SyntaxError:
-                pass
-
-        total = total_functions + total_classes + total_modules
-        documented = documented_functions + documented_classes + documented_modules
+        total = totals["functions"] + totals["classes"] + totals["modules"]
+        documented = (
+            totals["documented_functions"]
+            + totals["documented_classes"]
+            + totals["documented_modules"]
+        )
         coverage_pct = (documented / total * 100) if total > 0 else 100
 
         min_coverage = self.rules.get("min_docstrings_pct", 60)
@@ -103,6 +71,62 @@ class DocValidator:
             warnings=warnings,
             coverage_pct=coverage_pct,
         )
+
+    @staticmethod
+    def _has_docstring(body: list[ast.stmt]) -> bool:
+        if not body:
+            return False
+        first = body[0]
+        return (
+            isinstance(first, ast.Expr)
+            and isinstance(first.value, ast.Constant)
+            and isinstance(first.value.value, str)
+        )
+
+    def _validate_file_docstrings(
+        self,
+        py_file: Path,
+        require_module: bool,
+        require_function: bool,
+        warnings: list[str],
+        totals: dict[str, int],
+    ) -> None:
+        try:
+            source = py_file.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+        except SyntaxError:
+            return
+
+        totals["modules"] += 1
+        if self._has_docstring(tree.body):
+            totals["documented_modules"] += 1
+        elif require_module and tree.body:
+            warnings.append(f"{py_file}: Missing module-level docstring")
+
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                self._count_function_docstring(node, py_file, require_function, warnings, totals)
+            elif isinstance(node, ast.ClassDef):
+                totals["classes"] += 1
+                if self._has_docstring(node.body):
+                    totals["documented_classes"] += 1
+
+    def _count_function_docstring(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        py_file: Path,
+        require_function: bool,
+        warnings: list[str],
+        totals: dict[str, int],
+    ) -> None:
+        totals["functions"] += 1
+        if self._has_docstring(node.body):
+            totals["documented_functions"] += 1
+            return
+        if require_function and not node.name.startswith("_"):
+            warnings.append(
+                f"{py_file}:{node.lineno} Function '{node.name}' missing docstring"
+            )
 
     def validate_readme(self) -> DocValidationResult:
         warnings: list[str] = []

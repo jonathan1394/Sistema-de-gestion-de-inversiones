@@ -1,3 +1,5 @@
+"""Risk dashboard page for configuration and breaker visibility."""
+
 from __future__ import annotations
 
 import yaml
@@ -75,6 +77,7 @@ def _render_trading_requirements(trading: dict) -> None:
 
 
 def render() -> None:
+    """Render risk settings, kill switch, and circuit breaker state."""
     config = load_settings()
     raw = _load_yaml()
     risk = raw.get("risk", {})

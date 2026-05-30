@@ -1,3 +1,5 @@
+"""AI helper exports for summaries, explanations, and journal analysis."""
+
 from app.ai.market_summary import (
     MarketCondition,
     MarketSummary,

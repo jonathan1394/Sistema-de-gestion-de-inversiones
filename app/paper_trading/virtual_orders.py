@@ -1,3 +1,5 @@
+"""Virtual order models and fill simulation logic."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -53,6 +55,8 @@ class FillResult:
 
 
 class VirtualOrderManager:
+    """Manage in-memory orders and simulate fills."""
+
     def __init__(self, slippage_pct: float = 0.001) -> None:
         self._orders: dict[str, Order] = {}
         self._id_counter = 0
@@ -60,6 +64,7 @@ class VirtualOrderManager:
 
     @property
     def orders(self) -> list[Order]:
+        """Return all known orders."""
         return list(self._orders.values())
 
     def create_market_order(
@@ -68,6 +73,7 @@ class VirtualOrderManager:
         side: OrderSide,
         quantity: float,
     ) -> Order:
+        """Create and store a market order."""
         order = Order(
             id=self._next_id(),
             symbol=symbol,
@@ -85,6 +91,7 @@ class VirtualOrderManager:
         quantity: float,
         price: float,
     ) -> Order:
+        """Create and store a limit order."""
         order = Order(
             id=self._next_id(),
             symbol=symbol,
@@ -102,6 +109,7 @@ class VirtualOrderManager:
         current_price: float,
         timestamp: Optional[datetime] = None,
     ) -> Optional[FillResult]:
+        """Attempt to fill market or limit order at current price."""
         if order.status in (OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED):
             return None
 
@@ -115,6 +123,7 @@ class VirtualOrderManager:
         return None
 
     def cancel_order(self, order_id: str) -> bool:
+        """Cancel pending order by id."""
         order = self._orders.get(order_id)
         if order is None or order.status in (OrderStatus.FILLED, OrderStatus.CANCELLED):
             return False

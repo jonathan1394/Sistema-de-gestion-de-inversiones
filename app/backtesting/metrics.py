@@ -1,3 +1,5 @@
+"""Performance and trade-statistics computation for backtests."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -136,6 +138,7 @@ def _compute_trade_metrics(
 
 
 def compute_metrics(result: BacktestResult) -> BacktestMetrics:
+    """Compute aggregate metrics from one backtest result."""
     metrics = BacktestMetrics(
         initial_capital=result.initial_capital,
         final_capital=result.final_capital,

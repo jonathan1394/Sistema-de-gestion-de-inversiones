@@ -1,3 +1,5 @@
+"""Alert channels and manager for multi-destination notifications."""
+
 from __future__ import annotations
 
 import json
@@ -35,11 +37,13 @@ class Alert:
 class AlertChannel(ABC):
     @abstractmethod
     def send(self, alert: Alert) -> bool:
+        """Send one alert through the channel."""
         ...
 
 
 class ConsoleChannel(AlertChannel):
     def send(self, alert: Alert) -> bool:
+        """Print formatted alert to stderr."""
         color = {"INFO": "", "WARNING": "\033[93m", "ERROR": "\033[91m", "TRADE": "\033[92m"}.get(alert.level, "")
         reset = "\033[0m" if color else ""
         icon = {"INFO": "ℹ", "WARNING": "⚠", "ERROR": "✖", "TRADE": "💰"}.get(alert.level, "○")
@@ -50,6 +54,7 @@ class ConsoleChannel(AlertChannel):
 
 class DesktopChannel(AlertChannel):
     def send(self, alert: Alert) -> bool:
+        """Send desktop notification on supported platforms."""
         try:
             if sys.platform == "linux":
                 subprocess.run(
@@ -78,6 +83,7 @@ class TelegramChannel(AlertChannel):
         self._api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
     def send(self, alert: Alert) -> bool:
+        """Send alert message to configured Telegram chat."""
         try:
             icon = {"INFO": "ℹ️", "WARNING": "⚠️", "ERROR": "❌", "TRADE": "💰"}.get(alert.level, "🔔")
             text = (
@@ -102,9 +108,11 @@ class AlertManager:
         self._channels = channels or [ConsoleChannel()]
 
     def add_channel(self, channel: AlertChannel) -> None:
+        """Attach an additional delivery channel."""
         self._channels.append(channel)
 
     def notify(self, alert: Alert) -> bool:
+        """Persist and dispatch alert to all channels."""
         HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
         with HISTORY_FILE.open("a") as f:
             f.write(json.dumps({
@@ -120,6 +128,7 @@ class AlertManager:
         return any(results)
 
     def get_history(self, limit: int = 50) -> list[dict]:
+        """Read recent alert history entries from storage."""
         if not HISTORY_FILE.exists():
             return []
         entries = []
@@ -134,11 +143,13 @@ class AlertManager:
         return entries[-limit:]
 
     def clear_history(self) -> None:
+        """Delete persisted alert history file if present."""
         if HISTORY_FILE.exists():
             HISTORY_FILE.unlink()
 
 
 def build_alert_manager(config: Optional[dict] = None) -> AlertManager:
+    """Build alert manager using config and environment fallbacks."""
     channels: list[AlertChannel] = [ConsoleChannel()]
 
     if config:

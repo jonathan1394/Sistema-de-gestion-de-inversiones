@@ -1,3 +1,5 @@
+"""Database helpers for prospect lifecycle and analysis storage."""
+
 from __future__ import annotations
 
 import json
@@ -48,6 +50,7 @@ def add_prospect(
     interval: str = "1d",
     notes: str = "",
 ) -> Prospect:
+    """Insert a prospect if missing and return stored record."""
     now = int(time.time() * 1000)
     connection.execute(
         """
@@ -65,6 +68,7 @@ def get_prospect(
     symbol: str,
     interval: str = "1d",
 ) -> Optional[Prospect]:
+    """Fetch one prospect by symbol and interval."""
     row = connection.execute(
         "SELECT * FROM prospects WHERE symbol = ? AND interval = ?",
         (symbol.upper(), interval),
@@ -73,6 +77,7 @@ def get_prospect(
 
 
 def get_all_prospects(connection: sqlite3.Connection) -> list[Prospect]:
+    """Fetch all prospects sorted by score and symbol."""
     rows = connection.execute(
         "SELECT * FROM prospects ORDER BY score DESC, symbol ASC"
     ).fetchall()
@@ -83,6 +88,7 @@ def get_prospects_by_status(
     connection: sqlite3.Connection,
     status: str,
 ) -> list[Prospect]:
+    """Fetch prospects filtered by lifecycle status."""
     rows = connection.execute(
         "SELECT * FROM prospects WHERE status = ? ORDER BY score DESC",
         (status,),
@@ -102,6 +108,7 @@ def update_prospect_analysis(
     signals_count: int,
     metadata: Optional[dict[str, Any]] = None,
 ) -> None:
+    """Persist latest analysis metrics and metadata for a prospect."""
     now = int(time.time() * 1000)
     meta_json = json.dumps(metadata) if metadata else "{}"
     connection.execute(
@@ -128,6 +135,7 @@ def update_prospect_status(
     interval: str,
     status: str,
 ) -> None:
+    """Change prospect status value for a symbol and interval."""
     connection.execute(
         "UPDATE prospects SET status = ? WHERE symbol = ? AND interval = ?",
         (status, symbol.upper(), interval),
@@ -140,6 +148,7 @@ def archive_prospect(
     symbol: str,
     interval: str,
 ) -> None:
+    """Mark a prospect as archived."""
     update_prospect_status(connection, symbol, interval, "archived")
 
 
@@ -148,6 +157,7 @@ def remove_prospect(
     symbol: str,
     interval: str,
 ) -> bool:
+    """Delete a prospect and return whether a row was removed."""
     cursor = connection.execute(
         "DELETE FROM prospects WHERE symbol = ? AND interval = ?",
         (symbol.upper(), interval),

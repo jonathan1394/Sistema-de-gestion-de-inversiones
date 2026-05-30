@@ -1,3 +1,5 @@
+"""Screener pipeline to rank tracked assets."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -44,10 +46,12 @@ class ProspectScreenerResult:
 
     @property
     def top(self) -> Optional[ScreenedAsset]:
+        """Return highest-scored asset or None when empty."""
         return self.assets[0] if self.assets else None
 
     @property
     def count(self) -> int:
+        """Return number of screened assets."""
         return len(self.assets)
 
 
@@ -72,6 +76,7 @@ class ProspectScreener:
         ]
 
     def run_on_all(self) -> ProspectScreenerResult:
+        """Screen all stored prospects and persist updated analysis."""
         prospects = get_all_prospects(self._connection)
         result = ProspectScreenerResult()
         for p in prospects:
@@ -104,6 +109,7 @@ class ProspectScreener:
         symbol: str,
         interval: str = "1d",
     ) -> Optional[ScreenedAsset]:
+        """Screen one symbol and upsert its latest analysis."""
         screened = self._screen_one(symbol, interval)
         if screened is not None:
             update_prospect_analysis(

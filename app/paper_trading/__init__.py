@@ -1,3 +1,5 @@
+"""Paper-trading package exports for portfolio, orders, and simulator."""
+
 from app.paper_trading.virtual_portfolio import VirtualPortfolio, PortfolioSnapshot, Position
 from app.paper_trading.virtual_orders import (
     Order, OrderSide, OrderType, OrderStatus,

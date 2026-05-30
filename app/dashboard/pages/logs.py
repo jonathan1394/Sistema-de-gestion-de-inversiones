@@ -1,3 +1,5 @@
+"""System logs dashboard page for inspection and export."""
+
 from __future__ import annotations
 
 import json
@@ -38,6 +40,7 @@ def _read_logs() -> list[dict]:
 
 
 def render() -> None:
+    """Render filters, table, export, and manual log entry tools."""
     st.header("📋 System Logs")
     st.caption("Registro de eventos del sistema")
 

@@ -1,3 +1,5 @@
+"""Scoring and recommendation rules for prospect assets."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -29,6 +31,7 @@ def get_recommendation(
     min_confluence_invertir: int = 2,
     min_confluence_vigilat: int = 1,
 ) -> Recommendation:
+    """Map score and confluence inputs to a recommendation label."""
     if score >= invertir_threshold and confluence >= min_confluence_invertir:
         return Recommendation(
             label="INVERTIR",
@@ -87,6 +90,7 @@ DEFAULT_WEIGHTS: dict[str, float] = {
 
 
 def validate_weights(weights: dict[str, float]) -> dict[str, float]:
+    """Normalize and complete scoring weights to sum approximately one."""
     for key in DEFAULT_WEIGHTS:
         if key not in weights:
             weights[key] = DEFAULT_WEIGHTS[key]
@@ -106,6 +110,7 @@ def score_prospect(
     signals_count: int,
     weights: dict[str, float] | None = None,
 ) -> ProspectScore:
+    """Calculate weighted prospect score and component breakdown."""
     if weights is None:
         weights = dict(DEFAULT_WEIGHTS)
     else:

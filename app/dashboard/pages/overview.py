@@ -1,3 +1,5 @@
+"""Overview dashboard page summarizing market and system status."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -91,6 +93,7 @@ def _render_risk_summary() -> None:
 
 
 def render() -> None:
+    """Render high-level market, portfolio, and system overview panels."""
     st.markdown('<div class="page-title">Dashboard Overview</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-subtitle">Resumen del estado del sistema y cartera.</div>', unsafe_allow_html=True)
 

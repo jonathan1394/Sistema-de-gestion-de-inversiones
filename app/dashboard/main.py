@@ -11,10 +11,7 @@ from app.data.market_data import get_candles
 from app.database.connection import get_connection
 
 
-def inject_theme() -> None:
-    """Inject global CSS theme and UI component styling."""
-    st.markdown(
-        """
+THEME_CSS = """
         <style>
         :root {
             --brand-bg: #0b0f19;
@@ -169,9 +166,13 @@ def inject_theme() -> None:
             padding-top: 1.2rem;
         }
         </style>
-        """,
-        unsafe_allow_html=True,
-    )
+"""
+
+
+def inject_theme() -> None:
+    """Inject global CSS theme and UI component styling."""
+    st.markdown(THEME_CSS, unsafe_allow_html=True)
+
 
 st.set_page_config(
     page_title="CriptoLab",

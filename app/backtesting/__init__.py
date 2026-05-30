@@ -1,3 +1,5 @@
+"""Backtesting package exports for engine, metrics, and reports."""
+
 from app.backtesting.engine import BacktestEngine, BacktestResult, TradeRecord
 from app.backtesting.metrics import BacktestMetrics, compute_metrics
 from app.backtesting.reports import (

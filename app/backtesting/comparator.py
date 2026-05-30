@@ -1,3 +1,5 @@
+"""Tools to compare backtest outcomes across strategies and assets."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -32,6 +34,7 @@ class AssetStrategyResult:
 
     @property
     def best(self) -> Optional[StrategyMetrics]:
+        """Return best valid strategy by Sharpe ratio."""
         valid = [r for r in self.strategy_results if r.passed_validation]
         if not valid:
             return None
@@ -39,6 +42,7 @@ class AssetStrategyResult:
 
     @property
     def ranking(self) -> list[StrategyMetrics]:
+        """Return all strategy results sorted by Sharpe ratio."""
         return sorted(
             self.strategy_results,
             key=lambda r: r.metrics.sharpe_ratio,
@@ -52,16 +56,20 @@ class ConsolidatedRanking:
 
     @property
     def top(self) -> Optional[dict]:
+        """Return top consolidated entry if available."""
         return self.entries[0] if self.entries else None
 
     def to_dataframe(self) -> pd.DataFrame:
+        """Convert ranking entries to pandas DataFrame."""
         return pd.DataFrame(self.entries)
 
     def filter_min_trades(self, min_trades: int) -> ConsolidatedRanking:
+        """Filter consolidated entries by minimum trade count."""
         filtered = [e for e in self.entries if e.get("total_trades", 0) >= min_trades]
         return ConsolidatedRanking(entries=filtered)
 
     def filter_min_sharpe(self, min_sharpe: float) -> ConsolidatedRanking:
+        """Filter consolidated entries by minimum Sharpe ratio."""
         filtered = [e for e in self.entries if e.get("sharpe_ratio", 0) >= min_sharpe]
         return ConsolidatedRanking(entries=filtered)
 
@@ -86,6 +94,7 @@ def compare_strategies(
     min_trades: int = 0,
     min_sharpe: float = 0.0,
 ) -> AssetStrategyResult:
+    """Run several strategies on one dataset and collect metrics."""
     if strategies is None:
         strategies = DEFAULT_STRATEGIES
 
@@ -135,6 +144,7 @@ def compare_across_assets(
     min_trades: int = 0,
     min_sharpe: float = 0.0,
 ) -> ConsolidatedRanking:
+    """Run strategy comparison across symbols and intervals."""
     if strategies is None:
         strategies = DEFAULT_STRATEGIES
 
@@ -186,6 +196,7 @@ def compare_across_assets(
 
 
 def compute_weighted_score(entry: dict, weights: Optional[dict[str, float]] = None) -> float:
+    """Compute weighted ranking score from key performance fields."""
     if weights is None:
         weights = {"sharpe": 1.5, "drawdown": 2.0, "profit_factor": 1.0}
 

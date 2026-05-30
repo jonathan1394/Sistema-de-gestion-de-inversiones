@@ -1,3 +1,5 @@
+"""Backtest reporting helpers for text and file exports."""
+
 from __future__ import annotations
 
 import csv
@@ -9,6 +11,7 @@ from app.backtesting.metrics import BacktestMetrics, compute_metrics
 
 
 def generate_report(result: BacktestResult) -> str:
+    """Generate human-readable backtest report text."""
     metrics = compute_metrics(result)
 
     lines = []
@@ -64,6 +67,7 @@ def generate_report(result: BacktestResult) -> str:
 
 
 def export_metrics_json(result: BacktestResult, output_path: str | Path) -> Path:
+    """Export result and metrics payload to JSON file."""
     metrics = compute_metrics(result)
     payload = {
         "symbol": result.symbol,
@@ -83,6 +87,7 @@ def export_metrics_json(result: BacktestResult, output_path: str | Path) -> Path
 
 
 def export_trades_csv(result: BacktestResult, output_path: str | Path) -> Path:
+    """Export closed trades to CSV file."""
     destination = Path(output_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
 
@@ -133,6 +138,7 @@ def export_trades_csv(result: BacktestResult, output_path: str | Path) -> Path:
 
 
 def export_equity_csv(result: BacktestResult, output_path: str | Path) -> Path:
+    """Export equity curve values to CSV file."""
     destination = Path(output_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
 

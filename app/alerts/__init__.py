@@ -1,3 +1,5 @@
+"""Alerts package exports for rules, channels, and manager."""
+
 from app.alerts.channels import (
     Alert,
     AlertChannel,

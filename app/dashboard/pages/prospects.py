@@ -1,3 +1,5 @@
+"""Prospects dashboard page for watchlist and screening workflows."""
+
 from __future__ import annotations
 
 import streamlit as st
@@ -157,6 +159,7 @@ def _render_manage_form(conn, prospects: list) -> None:
 
 
 def render() -> None:
+    """Render prospect management, metrics, and screener controls."""
     _render_header()
     config = load_settings()
     conn = get_connection(config.database.path)
