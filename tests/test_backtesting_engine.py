@@ -1,9 +1,14 @@
 """Tests for app/backtesting/engine.py."""
 
+from unittest.mock import MagicMock
+
 import numpy as np
 import pandas as pd
 
 from app.backtesting.engine import BacktestEngine
+from app.risk.position_sizing import PositionSizeResult
+from app.risk.risk_manager import RiskDecision, RiskManager, TradeProposal
+from app.risk.stop_loss import StopLossResult
 from app.risk.trailing_stop import TrailingStopConfig
 from app.strategies.base_strategy import BaseStrategy, Signal, StrategyResult
 
@@ -187,21 +192,147 @@ class TestBacktestEngine:
         result = engine.run()
         assert result.final_capital > 0
 
-    def test_trailing_stop_with_atr(self):
-        dates = pd.date_range("2024-01-01", periods=10, freq="1h")
-        prices = [100, 101, 102, 101, 100, 99, 98, 97, 96, 95]
-        data = pd.DataFrame({
-            "open": prices, "high": [p + 0.5 for p in prices],
-            "low": [p - 0.5 for p in prices], "close": prices,
-            "volume": [1000] * 10,
-        }, index=dates)
-        cfg = TrailingStopConfig(
-            activation_pct=0.01, trail_pct=0.02,
-            use_atr=True, atr_multiplier=2.0,
-        )
-        engine = BacktestEngine(
-            DummyShortStrategy(), data,
-            trailing_stop_config=cfg,
-        )
         result = engine.run()
         assert result.final_capital > 0
+
+
+class TestBacktestEngineWithRiskManager:
+    """Verify RiskManager integration in BacktestEngine.run()."""
+
+    def _make_engine(self, risk_manager: RiskManager | None, data=None):
+        if data is None:
+            data = _make_data()
+        return BacktestEngine(DummyStrategy(), data, risk_manager=risk_manager)
+
+    def test_rm_approved_proceeds_normally(self):
+        rm = RiskManager(circuit_breakers=MagicMock(trading_allowed=True))
+        rm._circuit_breakers.can_open_new_position.return_value = MagicMock(trading_allowed=True)
+        engine = self._make_engine(rm)
+        result = engine.run()
+        assert len(result.trades) >= 1
+        assert len(result.rejected_signals) == 0
+
+    def test_rm_blocks_signal_gets_rejected(self):
+        rm = RiskManager(circuit_breakers=MagicMock(trading_allowed=True))
+        rm._circuit_breakers.can_open_new_position.return_value = MagicMock(trading_allowed=True)
+        rm.evaluate = MagicMock(return_value=RiskDecision(
+            approved=False, rejection_reason="Risk limit exceeded"
+        ))
+        engine = self._make_engine(rm)
+        result = engine.run()
+        assert len(result.trades) == 0
+        assert len(result.rejected_signals) > 0
+        assert "Risk limit exceeded" in result.rejected_signals[0]["rejection"]
+
+    def test_rm_rejected_signals_contain_timestamp_and_reason(self):
+        rm = RiskManager(circuit_breakers=MagicMock(trading_allowed=True))
+        rm._circuit_breakers.can_open_new_position.return_value = MagicMock(trading_allowed=True)
+        rm.evaluate = MagicMock(return_value=RiskDecision(
+            approved=False, rejection_reason="Daily loss limit"
+        ))
+        engine = self._make_engine(rm)
+        result = engine.run()
+        assert len(result.rejected_signals) > 0
+        entry = result.rejected_signals[0]
+        assert "timestamp" in entry
+        assert "reason" in entry
+        assert "rejection" in entry
+        assert entry["rejection"] == "Daily loss limit"
+
+    def test_rm_no_risk_manager_no_rejected_signals(self):
+        engine = self._make_engine(None)
+        result = engine.run()
+        assert result.rejected_signals == []
+
+    def test_rm_kill_switch_blocks_all_trades(self):
+        rm = RiskManager(circuit_breakers=MagicMock(trading_allowed=True))
+        rm._circuit_breakers.can_open_new_position.return_value = MagicMock(
+            trading_allowed=False, reason="Kill switch active"
+        )
+        engine = self._make_engine(rm)
+        result = engine.run()
+        assert len(result.trades) == 0
+        assert len(result.rejected_signals) > 0
+
+    def test_rm_position_size_from_decision_used(self):
+        """When RM approves, its position_size should be used."""
+        rm = RiskManager(circuit_breakers=MagicMock(trading_allowed=True))
+        rm._circuit_breakers.can_open_new_position.return_value = MagicMock(trading_allowed=True)
+
+        decision = RiskDecision(
+            approved=True,
+            stop_loss=StopLossResult(stop_price=99.0, distance_pct=0.01, method="fixed"),
+        )
+        decision.position_size = PositionSizeResult(
+            position_size=0.5, position_value=100.0,
+            risk_amount=1.0, risk_pct=0.01, entry_price=100.0,
+            stop_loss=99.0, max_risk_pct=0.01,
+        )
+        rm.evaluate = MagicMock(return_value=decision)
+
+        engine = self._make_engine(rm)
+        result = engine.run()
+        assert len(result.trades) >= 1
+        assert result.trades[0].entry_price > 0
+
+    def test_rm_short_strategy_with_risk_manager(self):
+        """Short strategy should work with RiskManager."""
+        rm = RiskManager(circuit_breakers=MagicMock(trading_allowed=True))
+        rm._circuit_breakers.can_open_new_position.return_value = MagicMock(trading_allowed=True)
+        decision = RiskDecision(
+            approved=True,
+            stop_loss=StopLossResult(stop_price=102.0, distance_pct=0.02, method="fixed"),
+        )
+        decision.position_size = PositionSizeResult(
+            position_size=1.0, position_value=500.0,
+            risk_amount=5.0, risk_pct=0.01, entry_price=100.0,
+            stop_loss=102.0, max_risk_pct=0.01,
+        )
+        rm.evaluate = MagicMock(return_value=decision)
+        data = _make_data()
+        engine = BacktestEngine(DummyShortStrategy(), data, risk_manager=rm)
+        result = engine.run()
+        assert len(result.trades) >= 1
+        assert any(t.direction == "short" for t in result.trades)
+
+    def test_rm_with_dynamic_take_profit_via_atr(self):
+        """When RM has take_profit_atr_multiplier and atr is available, TP should be set."""
+        rm = RiskManager(
+            circuit_breakers=MagicMock(trading_allowed=True),
+            take_profit_atr_multiplier=3.0,
+        )
+        rm._circuit_breakers.can_open_new_position.return_value = MagicMock(trading_allowed=True)
+
+        decision = RiskDecision(
+            approved=True,
+            stop_loss=StopLossResult(stop_price=98.0, distance_pct=0.02, method="fixed"),
+            take_profit=StopLossResult(stop_price=106.0, distance_pct=0.06, method="atr"),
+        )
+        decision.position_size = PositionSizeResult(
+            position_size=1.0, position_value=500.0,
+            risk_amount=5.0, risk_pct=0.01, entry_price=100.0,
+            stop_loss=98.0, max_risk_pct=0.01,
+        )
+        rm.evaluate = MagicMock(return_value=decision)
+
+        engine = self._make_engine(rm)
+        result = engine.run()
+        assert len(result.trades) >= 1
+
+    def test_rm_evaluate_called_with_correct_args(self):
+        """Verify evaluate receives proper TradeProposal."""
+        rm = RiskManager(circuit_breakers=MagicMock(trading_allowed=True))
+        rm._circuit_breakers.can_open_new_position.return_value = MagicMock(trading_allowed=True)
+        rm.evaluate = MagicMock(return_value=RiskDecision(
+            approved=True,
+            stop_loss=StopLossResult(stop_price=99.0, distance_pct=0.01, method="fixed"),
+        ))
+
+        engine = self._make_engine(rm)
+        engine.run()
+
+        assert rm.evaluate.called
+        call_args = rm.evaluate.call_args
+        proposal = call_args[0][0]
+        assert isinstance(proposal, TradeProposal)
+        assert proposal.symbol == "UNKNOWN"

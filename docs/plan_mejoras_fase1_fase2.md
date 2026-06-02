@@ -815,7 +815,7 @@ Se recomienda mantener este checklist actualizado a medida que se completan las 
 - [x] 1.2.1 Centralizar credenciales Binance
 - [x] 1.2.2 Telegram token security
 - [x] 1.3.1 Tests circuit_breakers
-- [ ] 1.3.2 Tests risk_manager
+- [x] 1.3.2 Tests risk_manager
 - [x] 1.3.3 Tests config
 - [x] 1.3.4 Tests metrics
 - [x] 1.3.5 Tests binance_client
@@ -834,7 +834,7 @@ Se recomienda mantener este checklist actualizado a medida que se completan las 
 - [ ] 1.6.1 VirtualPortfolio timestamp simulación
 - [ ] 1.6.2 Registrar buys en circuit breakers
 - [ ] 1.6.3 Sincronizar VirtualOrderManager + storage
-- [ ] 1.7 Integrar Risk Manager en backtesting
+- [x] 1.7 Integrar Risk Manager en backtesting
 - [ ] 1.8.1 Eliminar duplicación helpers
 - [ ] 1.8.2 Unificar capital inicial dinámico
 - [ ] 1.8.3 Manejo de errores consistente

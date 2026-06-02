@@ -55,7 +55,7 @@ Comprehensive gate/validator system at `quality/`. Gates (Phase1–Phase6) verif
 - **2.3 Trailing Stop + TP Dinámico**: `TrailingStop` class, `take_profit_dynamic()` based on ATR, integrated into RiskManager and BacktestEngine.
 - **2.4 Data Layer**: `connection_scope()` context manager, `DataAccessObject` class, Alembic migration for indexes, batch store_klines with chunking.
 - **2.5 Dashboard Refactor**: Helpers (`candles_to_dataframe`, `get_current_price`, `get_portfolio_value`, `update_portfolio_prices`, `add_snapshot`), `portfolio_state.py` cleanup, `main.py` explicit imports, `asset_detail.py` deduplication, strategies loaded from config.
-### Test Count: 211 (was 129)
+### Test Count: 233 (was 129)
 ### Known Issues
 - `asset_detail.py:render()` has high cyclomatic complexity (20) and length (122 lines) — pre-existing
 - `docker-compose.yml` references `app/main.py` which doesn't exist yet
