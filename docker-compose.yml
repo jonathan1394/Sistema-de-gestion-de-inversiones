@@ -1,0 +1,25 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      APP_MODE: ${APP_MODE:-analysis}
+      KILL_SWITCH: ${KILL_SWITCH:-true}
+      DATABASE_PATH: /data/market.db
+    volumes:
+      - ./data:/data
+      - ./settings.yaml:/app/settings.yaml:ro
+    ports:
+      - "8001:8000"
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      NEXT_PUBLIC_API_BASE: http://api:8000/api/v1
+    depends_on:
+      - api
+    ports:
+      - "3001:3000"

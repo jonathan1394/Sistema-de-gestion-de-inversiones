@@ -51,6 +51,28 @@ SCHEMA_STATEMENTS = [
         ON prospects (status, score DESC)
         """,
         """
+        CREATE TABLE IF NOT EXISTS decision_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            decision_id TEXT NOT NULL UNIQUE,
+            decision_type TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            symbol TEXT,
+            strategy_name TEXT,
+            timeframe TEXT,
+            mode TEXT NOT NULL,
+            approved INTEGER NOT NULL,
+            reason TEXT NOT NULL,
+            input_json TEXT DEFAULT '{}',
+            output_json TEXT DEFAULT '{}',
+            policy_version TEXT,
+            strategy_version TEXT
+        )
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_decision_log_timestamp
+        ON decision_log (timestamp)
+        """,
+        """
         CREATE TABLE IF NOT EXISTS paper_trades (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             symbol TEXT NOT NULL,

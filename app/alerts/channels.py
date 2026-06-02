@@ -99,7 +99,23 @@ class TelegramChannel(AlertChannel):
             )
             return resp.status_code == 200
         except Exception as e:
-            logger.warning("Telegram send failed: %s", e)
+            logger.error("Failed to send Telegram alert: %s", e)
+            return False
+
+    def send_document(self, document_path: str, caption: str = "") -> bool:
+        """Send a document to the configured Telegram chat."""
+        try:
+            with open(document_path, 'rb') as doc:
+                url = f"https://api.telegram.org/bot{self._token}/sendDocument"
+                resp = requests.post(
+                    url,
+                    data={"chat_id": self._chat_id, "caption": caption},
+                    files={"document": doc},
+                    timeout=10,
+                )
+            return resp.status_code == 200
+        except Exception as e:
+            logger.error("Failed to send Telegram document: %s", e)
             return False
 
 

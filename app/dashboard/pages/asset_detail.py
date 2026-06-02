@@ -8,10 +8,14 @@ import streamlit as st
 from app.ai.market_summary import generate_market_summary
 from app.backtesting.comparator import compare_strategies
 from app.config import load_settings
+from app.data.binance_client import BinanceClient
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
+from app.database.migrations import run_migrations
+from app.governance.decision_engine import evaluate_investment_decision, InvestmentDecision
 from app.prospecting.db import get_all_prospects, get_prospect
 from app.prospecting.scoring import get_recommendation
+from app.paper_trading.storage import record_trade, upsert_position
 
 
 def analyze_timeframe(conn, symbol: str, interval: str) -> dict | None:
@@ -168,11 +172,120 @@ def render() -> None:
         st.warning(f"No data available for {symbol}. Download historical data first.")
         return
 
+    # Evaluate investment decision for this symbol (using 1d interval for score, but confluence computed inside)
+    decision = evaluate_investment_decision(
+        symbol=symbol,
+        interval="1d",  # kept for compatibility
+        score=prospect.score if prospect else 0.0,
+        suggested_amount_usdt=50.0,
+    )
+
     _render_overview(symbol, prospect, results[0], compute_confluence(results))
     st.divider()
     _render_confluence(results)
     _render_key_levels(results)
     _render_backtest_comparison(conn, symbol)
 
+    # Paper trading execution section
+    st.divider()
+    st.subheader("Operación Paper Trading")
+    if prospect:
+        st.caption(f"Score: {prospect.score:.4f} | Recomendación: {decision.recommendation} | Confluencia: {decision.confluence}/3")
+    else:
+        st.caption("Este símbolo no está en tu lista de prospectos. Agregarlo primero en la página de Prospectos.")
+
+    # Show decision details
+    if decision.action == "PAPER_BUY" and decision.approved:
+        st.success(f"Esta operación está **aprobada** para ejecución paper.")
+        # Manual amount input
+        amount_input = st.number_input(
+            f"Monto a invertir (USDT) para {symbol}",
+            min_value=0.0,
+            value=decision.suggested_amount_usdt,
+            step=1.0,
+            help="Ingresa el monto en USDT que deseas invertir en esta operación paper.",
+        )
+        if st.button("Ejecutar operación paper", type="primary", use_container_width=True):
+            if amount_input <= 0:
+                st.error("El monto debe ser mayor que cero.")
+            else:
+                # Re-evaluate with the provided amount to check risk limits
+                updated_decision = evaluate_investment_decision(
+                    symbol=symbol,
+                    interval="1d",
+                    score=prospect.score if prospect else 0.0,
+                    suggested_amount_usdt=amount_input,
+                )
+                if updated_decision.approved and updated_decision.action == "PAPER_BUY":
+                    # Record the trade
+                    try:
+                        # Fetch current price for execution
+                        price = _get_current_price(conn, symbol)
+                        if price is None or price <= 0:
+                            st.error("No se pudo obtener el precio actual para ejecutar la operación.")
+                        else:
+                            quantity = amount_input / price
+                            # Record trade
+                            trade = record_trade(
+                                connection=conn,
+                                symbol=symbol,
+                                action="BUY",
+                                quantity=quantity,
+                                price=price,
+                                commission=0.0,  # TODO: use settings.fees.trading_fee_pct
+                                pnl=0.0,  # PNL will be calculated later on close
+                                pnl_pct=0.0,
+                                reason=f"Paper trade from asset detail: score {prospect.score:.2f}, confluence {updated_decision.confluence}/3",
+                                interval="1d",
+                            )
+                            # Update or insert position
+                            upsert_position(
+                                connection=conn,
+                                symbol=symbol,
+                                quantity=quantity,
+                                entry_price=price,
+                                current_price=price,
+                                entry_time=trade.created_at,
+                            )
+                            st.success(
+                                f"Operación paper ejecutada: {quantity:.6f} {symbol} a ${price:,.2f} USDT. "
+                                f"Trade ID: {trade.id}"
+                            )
+                            # Optionally, refresh to update portfolio views
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al ejecutar la operación paper: {e}")
+                else:
+                    st.error(
+                        f"Operación rechazada por gestión de riesgo: {updated_decision.reason} "
+                        f"(Bloqueo: {updated_decision.blocking_rule})"
+                    )
+    elif decision.action == "PAPER_BUY" and not decision.approved:
+        st.warning(
+            f"Esta operación está **rechazada** por gestión de riesgo: {decision.reason} "
+            f"(Bloqueo: {decision.blocking_rule})"
+        )
+    else:
+        # Not INVERTIR or not paper buy action
+        st.info(
+            f"Esta operación no está disponible para paper trading actual. "
+            f"Recomendación: {decision.reason}"
+        )
+
     if st.button("Refresh", use_container_width=True):
         st.rerun()
+
+
+def _get_current_price(connection: sqlite3.Connection, symbol: str) -> Optional[float]:
+    """Fetch the latest close price for symbol from candles (prefer 1h, then 4h, then 1d)."""
+    for interval in ("1h", "4h", "1d"):
+        candles = get_candles(
+            connection=connection,
+            symbol=symbol,
+            interval=interval,
+            limit=1,
+            desc=True,
+        )
+        if candles and len(candles) > 0:
+            return float(candles[0].close)
+    return None

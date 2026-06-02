@@ -10,7 +10,7 @@ import pandas as pd
 from app.config import load_settings
 from app.database.connection import get_connection
 from app.data.market_data import get_candles
-from app.dashboard.main import get_portfolio_value, update_portfolio_prices, add_snapshot
+from app.dashboard.portfolio_state import add_snapshot, get_portfolio_value, update_portfolio_prices
 
 
 def _load_prices(conn) -> dict[str, float]:

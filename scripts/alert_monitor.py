@@ -4,6 +4,7 @@ import argparse
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+import sqlite3
 
 import pandas as pd
 import yaml
@@ -33,6 +34,30 @@ def _load_alerts_config() -> dict:
         return raw.get("alerts", {})
     except Exception:
         return {}
+
+
+def _get_current_drawdown(conn: sqlite3.Connection) -> float:
+    """Calculate current drawdown from paper snapshots."""
+    # Get latest total_value
+    latest_row = conn.execute(
+        "SELECT total_value FROM paper_snapshots ORDER BY timestamp DESC LIMIT 1"
+    ).fetchone()
+    if not latest_row:
+        return 0.0
+    latest_value = float(latest_row[0])
+    
+    # Get maximum total_value (peak)
+    peak_row = conn.execute(
+        "SELECT MAX(total_value) FROM paper_snapshots"
+    ).fetchone()
+    if not peak_row:
+        return 0.0
+    peak_value = float(peak_row[0])
+    
+    if peak_value == 0:
+        return 0.0
+    drawdown = (peak_value - latest_value) / peak_value * 100.0
+    return max(0.0, drawdown)
 
 
 def _get_latest_price(symbol: str, conn) -> float:
@@ -103,8 +128,8 @@ def cmd_monitor(args: argparse.Namespace) -> None:
             ))
         if cfg.get("risk", {}).get("enabled", True):
             engine.add_rule(risk_alert_rule(
-                symbol=symbol,
-                drawdown_fn=lambda: 0.0,
+                symbol="PORTFOLIO",  # We are monitoring overall portfolio drawdown
+                drawdown_fn=lambda: _get_current_drawdown(conn),
                 max_drawdown=cfg.get("risk", {}).get("max_drawdown_pct", 20.0),
             ))
 

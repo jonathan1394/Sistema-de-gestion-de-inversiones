@@ -133,7 +133,7 @@ prospecting:
     signals: 0.15
   recommendation:
     invertir_threshold: 0.75
-    vigilat_threshold: 0.60
+    vigilar_threshold: 0.60
     neutral_threshold: 0.40
     min_confluence_for_invertir: 2
-    min_confluence_for_vigilat: 1
+    min_confluence_for_vigilar: 1

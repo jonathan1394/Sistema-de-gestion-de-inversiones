@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
 from datetime import datetime, timezone
+
+# Ensure the app module can be found when running via streamlit
+PROJECT_ROOT = Path(__file__).parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import streamlit as st
 
 from app.config import load_settings
+from app.dashboard.portfolio_state import add_snapshot, get_portfolio_value, update_portfolio_prices
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
 
@@ -209,40 +217,9 @@ PAGES = {
     "Risk": "app.dashboard.pages.risk",
     "Alerts": "app.dashboard.pages.alerts",
     "Logs": "app.dashboard.pages.logs",
+    "Decision Log": "app.dashboard.pages.decision_log",
+    "Ranking": "app.dashboard.pages.ranking",
 }
-
-
-def get_portfolio_value() -> float:
-    """Return current portfolio value from cash plus marked-to-market positions."""
-    pos_value = sum(
-        p["quantity"] * p["current_price"]
-        for p in st.session_state.portfolio_positions.values()
-    )
-    return st.session_state.portfolio_cash + pos_value
-
-
-def update_portfolio_prices(prices: dict[str, float]) -> None:
-    """Update session positions with latest prices and unrealized PnL."""
-    for symbol, price in prices.items():
-        if symbol in st.session_state.portfolio_positions:
-            pos = st.session_state.portfolio_positions[symbol]
-            pos["current_price"] = price
-            pos["unrealized_pnl"] = pos["quantity"] * (price - pos["entry_price"])
-            pos["unrealized_pnl_pct"] = (price / pos["entry_price"] - 1) * 100
-
-
-def add_snapshot() -> None:
-    """Store a timestamped portfolio snapshot with drawdown metrics."""
-    tv = get_portfolio_value()
-    if tv > st.session_state.portfolio_peak:
-        st.session_state.portfolio_peak = tv
-    dd = (st.session_state.portfolio_peak - tv) / st.session_state.portfolio_peak * 100 if st.session_state.portfolio_peak > 0 else 0
-    st.session_state.portfolio_snapshots.append({
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "total_value": round(tv, 2),
-        "cash": round(st.session_state.portfolio_cash, 2),
-        "drawdown_pct": round(dd, 2),
-    })
 
 
 def render_overview_indicators() -> None:

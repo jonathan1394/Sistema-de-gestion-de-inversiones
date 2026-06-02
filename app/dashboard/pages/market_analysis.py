@@ -7,8 +7,11 @@ import streamlit as st
 
 from app.ai.market_summary import generate_market_summary
 from app.config import load_settings
+from app.data.binance_client import BinanceClient
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
+from app.database.migrations import run_migrations
+from app.prospecting.db import add_prospect, get_prospect
 
 
 def analyze_timeframe(conn, symbol: str, interval: str) -> dict | None:
@@ -128,12 +131,36 @@ def render() -> None:
 
     config = load_settings()
     conn = get_connection(config.database.path)
+    
+    # Input symbol
     symbol = st.text_input("Symbol", value="BTCUSDT").strip().upper()
-
+    
     if not symbol:
         st.info("Enter a symbol to begin analysis.")
         return
 
+    # Check if symbol is in prospects and get score
+    prospect = get_prospect(conn, symbol) if symbol else None
+    if prospect:
+        st.caption(f"Este símbolo está en tu lista de prospectos con score {prospect.score:.4f} y estado {prospect.status}.")
+    else:
+        st.caption("Este símbolo no está en tu lista de prospectos. Puedes agregarlo abajo.")
+
+    # Button to add to prospects
+    if st.button("Agregar a Prospectos", use_container_width=True):
+        if symbol:
+            try:
+                add_prospect(conn, symbol)
+                st.success(f"Símbolo {symbol} agregado a prospectos.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error al agregar a prospectos: {e}")
+        else:
+            st.warning("Ingrese un símbolo válido.")
+
+    st.divider()
+    
+    # Run analysis
     results = [r for tf in ["1h", "4h", "1d"] if (r := analyze_timeframe(conn, symbol, tf)) is not None]
     if not results:
         st.warning(f"No data available for {symbol}. Download historical data first.")
@@ -152,6 +179,35 @@ def render() -> None:
     st.subheader("Multi-Timeframe Summary")
     summary_parts = [f"**{r['interval']}**: {r['summary_text']}" for r in results]
     st.markdown("  \n".join(summary_parts))
+
+    # Option to run screener for this symbol only
+    if st.button("Ejecutar Screener para este símbolo", use_container_width=True):
+        with st.spinner(f"Analizando {symbol}..."):
+            try:
+                from app.prospecting.screener import ProspectScreener
+                from app.data.binance_client import BinanceClient
+                weights = None
+                try:
+                    from pathlib import Path
+                    import yaml
+                    raw = yaml.safe_load(Path("settings.yaml").open()) or {}
+                    weights = raw.get("prospecting", {}).get("scoring_weights")
+                except Exception:
+                    pass
+                client = BinanceClient(config.binance)
+                screener = ProspectScreener(
+                    client=client,
+                    connection=conn,
+                    weights=weights,
+                )
+                result = screener.run_on_symbol(symbol)
+                if result:
+                    st.success(f"Screener completado. Score: {result.score.total:.4f}")
+                    st.rerun()
+                else:
+                    st.warning(f"No se pudo analizar {symbol}. Verifique que haya suficientes datos.")
+            except Exception as e:
+                st.error(f"Error al ejecutar screener: {e}")
 
     if st.button("Refresh Analysis", use_container_width=True):
         st.rerun()

@@ -7,9 +7,25 @@ import streamlit as st
 import yaml
 
 from app.config import load_settings
-from app.dashboard.main import get_portfolio_value
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
+
+
+def _get_portfolio_value() -> float:
+    """Compute current portfolio value from Streamlit session state.
+
+    Kept local to avoid importing `app.dashboard.main` (which calls `st.set_page_config`).
+    """
+
+    cash = float(st.session_state.get("portfolio_cash", 0.0))
+    positions = st.session_state.get("portfolio_positions", {})
+    pos_value = 0.0
+    for pos in positions.values():
+        try:
+            pos_value += float(pos.get("quantity", 0.0)) * float(pos.get("current_price", 0.0))
+        except Exception:
+            continue
+    return cash + pos_value
 
 
 def _render_market_header(candles_4h: list, candles_1d: list) -> None:
@@ -27,7 +43,7 @@ def _render_market_header(candles_4h: list, candles_1d: list) -> None:
     low_30d = min(c.low for c in candles_1d) if candles_1d else 0
     range_pct = (high_30d - low_30d) / low_30d * 100 if low_30d else 0
     col3.metric("Rango 30d", f"${low_30d:,.0f} - ${high_30d:,.0f}", f"{range_pct:.1f}%", border=True)
-    col4.metric("Valor Cartera", f"${get_portfolio_value():.2f}", border=True)
+    col4.metric("Valor Cartera", f"${_get_portfolio_value():.2f}", border=True)
 
 
 def _render_open_positions() -> None:

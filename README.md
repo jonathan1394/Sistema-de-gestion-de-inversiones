@@ -11,9 +11,12 @@ Sistema privado de inversión cripto enfocado en disciplina, gestión de riesgo 
 - Paper trading con persistencia en base de datos
 - Dashboard interactivo con Streamlit para análisis y monitoreo
 - Sistema de prospección y scoring de activos
-- Motor de alertas configurables
+- Sistema de alertas configurables con detección de drawdown
 - Diario de trading para análisis de comportamiento
 - Sistema de calidad automatizado con gates y validadores
+- Motor de decisiones para operaciones paper con registro de trazabilidad
+- Sistema de ranking multi-timeframe y confluencia
+- Generador de reportes diarios con envío opcional por Telegram
 
 ## Arquitectura
 
@@ -103,6 +106,28 @@ python -m scripts.run_paper_trading --symbol BTCUSDT --interval 1h --strategy ma
 python -m scripts.run_prospecting --symbols BTCUSDT,ETHUSDT,SOLUSDT --interval 1d
 ```
 
+### Sistema de Alertas y Reportes
+
+```bash
+# Generar reporte diario (JSON y Markdown)
+python -m scripts.daily_report
+
+# Generar reporte diario solo en formato JSON
+python -m scripts.daily_report --format json
+
+# Generar reporte diario solo en formato Markdown
+python -m scripts.daily_report --format markdown
+
+# Iniciar monitor de alertas (drawdown, precio, señales)
+python -m scripts.alert_monitor --symbol BTCUSDT --interval 30s
+
+# Ver el registro de decisiones (también disponible en el dashboard)
+python -m scripts.view_decisions --limit 20
+
+# Generar ranking de activos
+python -m scripts.generate_ranking --symbols BTCUSDT,ETHUSDT,SOLUSDT --interval 1h
+```
+
 ### Dashboard
 
 ```bash
@@ -166,3 +191,8 @@ El proyecto sigue un roadmap por fases:
 **Fase 4-5 (Planificada)**: Dashboard completo, analisis de mercado, reportes
 
 Consulte `docs/roadmap_analisis.md` para el plan detallado de desarrollo.
+
+## Plan Web (Opcion B)
+
+Para migrar a una web mas estable (manteniendo el core en Python y creando un frontend moderno):
+ver `docs/plan_migracion_web_opcion_b.md`.
