@@ -10,8 +10,8 @@ from app.prospecting.db import (
     update_prospect_analysis,
     update_prospect_status,
 )
-from app.prospecting.screener import ProspectScreener, ProspectScreenerResult
 from app.prospecting.scoring import ProspectScore, score_prospect
+from app.prospecting.screener import ProspectScreener, ProspectScreenerResult
 
 __all__ = [
     "add_prospect",

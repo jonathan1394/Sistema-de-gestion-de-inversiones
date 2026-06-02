@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import csv
 import json
+import logging
 from pathlib import Path
 
 from app.backtesting.engine import BacktestResult
-from app.backtesting.metrics import BacktestMetrics, compute_metrics
+from app.backtesting.metrics import compute_metrics
 
+logger = logging.getLogger(__name__)
 
 def generate_report(result: BacktestResult) -> str:
     """Generate human-readable backtest report text."""

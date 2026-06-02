@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
-from typing import Optional
+from typing import Callable, Optional
 
 import pandas as pd
 
 from app.strategies.base_strategy import Signal
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class SignalExplanation:
@@ -23,18 +25,18 @@ class SignalExplanation:
 
 def _action_explanation(signal: Signal, data: Optional[pd.DataFrame], context: dict[str, float]) -> tuple[str, str]:
     """Build action-specific explanation text and base strength."""
-    action_map = {
+    action_map: dict[str, tuple[str, str] | Callable] = {
         "BUY": lambda: _explain_buy(signal, data, context),
         "SELL": lambda: _explain_sell(signal, data, context),
         "EXIT": (f"Full exit signal for {signal.symbol}: {signal.reason}", "high"),
         "REDUCE": (f"Reduce position for {signal.symbol}: {signal.reason}", "medium"),
     }
-    result = action_map.get(signal.action)
-    if result is None:
+    raw = action_map.get(signal.action)
+    if raw is None:
         return f"HOLD: No clear signal for {signal.symbol}", "medium"
-    if callable(result):
-        return result(), "medium"
-    return result
+    if callable(raw):
+        return raw(), "medium"
+    return raw
 
 
 def _confidence_strength(confidence: float, current: str) -> str:
@@ -145,8 +147,9 @@ def _explain_sell(
     parts = [f"SELL signal for {signal.symbol}"]
     parts.append(f"Reason: {signal.reason}")
 
-    if signal.pnl_pct is not None:
-        parts.append(f"P&L: {signal.pnl_pct:+.2f}%")
+    pnl = context.get("pnl_pct")
+    if pnl is not None:
+        parts.append(f"P&L: {pnl:+.2f}%")
 
     context["exit_price"] = round(signal.price, 2)
 

@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from app.database.migrations import run_migrations
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class StoredTrade:
@@ -36,42 +40,7 @@ class StoredPosition:
 
 def init_portfolio_tables(connection: sqlite3.Connection) -> None:
     """Create portfolio, trades, and snapshots tables if missing."""
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS paper_trades (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            symbol TEXT NOT NULL,
-            interval TEXT NOT NULL DEFAULT '4h',
-            action TEXT NOT NULL,
-            quantity REAL NOT NULL,
-            price REAL NOT NULL,
-            commission REAL DEFAULT 0.0,
-            pnl REAL DEFAULT 0.0,
-            pnl_pct REAL DEFAULT 0.0,
-            reason TEXT DEFAULT '',
-            created_at TEXT NOT NULL
-        )
-    """)
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS paper_portfolio (
-            symbol TEXT NOT NULL PRIMARY KEY,
-            quantity REAL NOT NULL DEFAULT 0.0,
-            entry_price REAL NOT NULL DEFAULT 0.0,
-            current_price REAL NOT NULL DEFAULT 0.0,
-            unrealized_pnl REAL NOT NULL DEFAULT 0.0,
-            entry_time TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )
-    """)
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS paper_snapshots (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            total_value REAL NOT NULL,
-            cash REAL NOT NULL,
-            drawdown_pct REAL NOT NULL DEFAULT 0.0
-        )
-    """)
-    connection.commit()
+    run_migrations(connection)
 
 
 def record_trade(

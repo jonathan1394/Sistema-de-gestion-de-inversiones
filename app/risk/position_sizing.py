@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
-from typing import Optional
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class PositionSizeResult:
@@ -75,7 +76,7 @@ def calculate_position_size(
         position_size=round(position_size, 8),
         position_value=round(position_value, 2),
         risk_amount=round(risk_amount, 2),
-        risk_pct=risk_per_trade_pct * 100,
+        risk_pct=risk_per_trade_pct,
         entry_price=entry_price,
         stop_loss=stop_loss,
         max_risk_pct=risk_per_trade_pct,

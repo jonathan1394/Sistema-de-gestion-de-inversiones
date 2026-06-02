@@ -7,10 +7,9 @@ que quede registrado en /reports/agent_logs/
 """
 
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from .gates.base_gate import GateResult
 
@@ -58,7 +57,7 @@ class AgentReport:
     def _format_report(self, report: dict, path: Path) -> str:
         lines = []
         lines.append("=" * 60)
-        lines.append(f"CriptoLab Agent Report")
+        lines.append("CriptoLab Agent Report")
         lines.append(f"Timestamp: {report['timestamp']}")
         lines.append(f"Saved to: {path}")
         lines.append("=" * 60)

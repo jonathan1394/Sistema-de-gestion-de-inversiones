@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Callable, Optional
-
-import pandas as pd
 
 from app.alerts.channels import Alert, AlertManager
 from app.strategies.base_strategy import Signal
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class AlertRule:

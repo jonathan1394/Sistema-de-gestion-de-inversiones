@@ -6,6 +6,16 @@ function apiBase(): string {
   return process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000/api/v1";
 }
 
+type RiskEvaluatePayload = {
+  symbol: string;
+  direction: string;
+  entry_price: number;
+  capital: number;
+  confidence: number;
+  reason: string;
+  stop_loss_pct?: number;
+};
+
 export function RiskEvaluator() {
   const [pending, startTransition] = useTransition();
   const [symbol, setSymbol] = useState("BTCUSDT");
@@ -15,14 +25,14 @@ export function RiskEvaluator() {
   const [confidence, setConfidence] = useState("0.5");
   const [reason, setReason] = useState("UI evaluation");
   const [stopLossPct, setStopLossPct] = useState("");
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function evaluate() {
     setError(null);
     setResult(null);
 
-    const payload: any = {
+    const payload: RiskEvaluatePayload = {
       symbol: symbol.trim().toUpperCase(),
       direction,
       entry_price: Number(entryPrice),

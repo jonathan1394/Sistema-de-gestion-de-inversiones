@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Body, Request
@@ -9,7 +10,7 @@ from fastapi import APIRouter, Body, Request
 from app.risk.exposure_limits import PortfolioState
 from app.risk.risk_manager import RiskManager, TradeProposal
 
-
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/risk", tags=["risk"])
 
 
@@ -74,11 +75,10 @@ def evaluate(
 
     portfolio_in = payload.get("portfolio") or {}
     portfolio = PortfolioState(
-        total_value=float(portfolio_in.get("total_value", proposal.capital)),
+        total_capital=float(portfolio_in.get("total_capital", proposal.capital)),
         cash=float(portfolio_in.get("cash", proposal.capital)),
         positions=dict(portfolio_in.get("positions", {}) or {}),
-        exposure_pct=float(portfolio_in.get("exposure_pct", 0.0)),
-        altcoin_exposure_pct=float(portfolio_in.get("altcoin_exposure_pct", 0.0)),
+        asset_classes=dict(portfolio_in.get("asset_classes", {}) or {}),
     )
 
     rm = RiskManager(
@@ -125,9 +125,14 @@ def evaluate(
         data["exposure"] = {
             "approved": decision.exposure.approved,
             "rejection_reason": decision.exposure.rejection_reason,
-            "asset_exposure_pct": decision.exposure.asset_exposure_pct,
-            "total_exposure_pct": decision.exposure.total_exposure_pct,
-            "altcoin_exposure_pct": decision.exposure.altcoin_exposure_pct,
+            "current_asset_exposure_pct": decision.exposure.current_asset_exposure_pct,
+            "current_total_exposure_pct": decision.exposure.current_total_exposure_pct,
+            "proposed_additional_pct": decision.exposure.proposed_additional_pct,
+            "asset_exposure_after_pct": decision.exposure.asset_exposure_after_pct,
+            "total_exposure_after_pct": decision.exposure.total_exposure_after_pct,
+            "max_asset_pct": decision.exposure.max_asset_pct,
+            "max_total_pct": decision.exposure.max_total_pct,
+            "max_altcoin_pct": decision.exposure.max_altcoin_pct,
         }
     if decision.circuit_breaker is not None:
         data["circuit_breaker"] = {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 
 import pandas as pd
 import streamlit as st
@@ -10,6 +11,7 @@ import streamlit as st
 from app.backtesting import BacktestEngine, compute_metrics
 from app.backtesting.comparator import compare_strategies
 from app.config import load_settings
+from app.dashboard.helpers import candles_to_dataframe
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
 from app.strategies import (
@@ -20,21 +22,10 @@ from app.strategies import (
     TrendFollowing,
 )
 
-
-def _candles_to_dataframe(candles: list) -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
-            "open": [c.open for c in candles],
-            "high": [c.high for c in candles],
-            "low": [c.low for c in candles],
-            "close": [c.close for c in candles],
-            "volume": [c.volume for c in candles],
-        }
-    )
+logger = logging.getLogger(__name__)
 
 
-def _strategy_instance(strategy_name: str, symbol: str, fast: int, slow: int):
+def _strategy_instance(strategy_name: str, symbol: str, params_override: dict | None = None):
     cls_map = {
         "MA Crossover": MovingAverageCrossover,
         "RSI": RSIStrategy,
@@ -43,11 +34,25 @@ def _strategy_instance(strategy_name: str, symbol: str, fast: int, slow: int):
         "Rebalanceo": RebalanceStrategy,
     }
     strat_cls = cls_map[strategy_name]
+
+    config = load_settings()
+    strategies_cfg = config.strategies or {}
+
+    cfg_key = {
+        "MA Crossover": "moving_average_crossover",
+        "RSI": "rsi_strategy",
+        "Trend Following": "trend_following",
+        "DCA Dinámico": "dca_dynamic",
+        "Rebalanceo": "rebalance",
+    }.get(strategy_name, "")
+
     params: dict = {"symbol": symbol}
-    if strategy_name == "MA Crossover":
-        params["fast_period"] = fast
-        params["slow_period"] = slow
-    return strat_cls(parameters=params)
+    cfg_section = strategies_cfg.get(cfg_key, {}) if cfg_key else {}
+    if isinstance(cfg_section, dict):
+        params.update(cfg_section)
+    if params_override:
+        params.update(params_override)
+    return strat_cls(parameters=params)  # type: ignore[abstract]
 
 
 def _render_metrics(metrics) -> None:
@@ -122,14 +127,15 @@ def _render_export_button(result, strategy: str, symbol: str, interval: str) -> 
     )
 
 
-def _run_backtest(conn, symbol: str, interval: str, strategy: str, fast: int, slow: int, capital: float) -> None:
+def _run_backtest(conn, symbol: str, interval: str, strategy: str,
+                  params_override: dict | None, capital: float) -> None:
     candles = get_candles(connection=conn, symbol=symbol, interval=interval, limit=1000)
     if len(candles) < 50:
         st.warning(f"Solo {len(candles)} velas disponibles. Descarga datos primero.")
         st.stop()
 
-    data = _candles_to_dataframe(candles)
-    strategy_instance = _strategy_instance(strategy, symbol, fast, slow)
+    data = candles_to_dataframe(candles)
+    strategy_instance = _strategy_instance(strategy, symbol, params_override)
     engine = BacktestEngine(
         strategy=strategy_instance,
         data=data,
@@ -172,7 +178,7 @@ def render_compare_section(conn, symbol: str, interval: str, capital: float) -> 
                     st.warning(f"Insufficient data ({len(candles)} candles).")
                     return
 
-                data = _candles_to_dataframe(candles)
+                data = candles_to_dataframe(candles)
 
                 result = compare_strategies(
                     data=data,
@@ -216,6 +222,7 @@ def render_compare_section(conn, symbol: str, interval: str, capital: float) -> 
 
             except Exception as e:
                 st.error(f"Comparison failed: {e}")
+                logger.exception("Error in backtest comparison")
 
 
 def render() -> None:
@@ -243,23 +250,52 @@ def render() -> None:
             ["MA Crossover", "RSI", "Trend Following", "DCA Dinámico", "Rebalanceo"],
         )
 
-    col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        fast = st.number_input("Periodo rápido", min_value=5, max_value=100, value=20)
+    strategies_cfg = (config.strategies or {}) if hasattr(config, "strategies") else {}
 
-    with col_b:
-        slow = st.number_input("Periodo lento", min_value=10, max_value=200, value=50)
+    params_override: dict = {}
+    cfg_key = {
+        "MA Crossover": "moving_average_crossover",
+        "RSI": "rsi_strategy",
+        "Trend Following": "trend_following",
+        "DCA Dinámico": "dca_dynamic",
+        "Rebalanceo": "rebalance",
+    }.get(strategy, "")
+    strat_cfg = strategies_cfg.get(cfg_key, {}) if isinstance(strategies_cfg, dict) else {}
 
-    with col_c:
-        capital = st.number_input("Capital inicial", min_value=100, max_value=100000, value=1000, step=100)
+    if strategy == "MA Crossover":
+        col_a, col_b = st.columns(2)
+        with col_a:
+            fast_default = strat_cfg.get("fast_period", 20)
+            fast = st.number_input("Periodo rápido", min_value=5, max_value=100, value=int(fast_default))
+            params_override["fast_period"] = fast
+        with col_b:
+            slow_default = strat_cfg.get("slow_period", 50)
+            slow = st.number_input("Periodo lento", min_value=10, max_value=200, value=int(slow_default))
+            params_override["slow_period"] = slow
+    elif strategy == "RSI":
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            rsi_def = strat_cfg.get("rsi_period", 14)
+            params_override["rsi_period"] = st.number_input("RSI Period", min_value=5, max_value=50, value=int(rsi_def))
+        with col_b:
+            os_def = strat_cfg.get("oversold", 30)
+            params_override["oversold"] = st.number_input("Oversold", min_value=10, max_value=50, value=int(os_def))
+        with col_c:
+            ob_def = strat_cfg.get("overbought", 70)
+            params_override["overbought"] = st.number_input("Overbought", min_value=50, max_value=90, value=int(ob_def))
+    elif strategy in ("Trend Following", "DCA Dinámico", "Rebalanceo"):
+        st.caption(f"Parámetros cargados desde settings.yaml → strategies → {cfg_key}")
+
+    capital = st.number_input("Capital inicial", min_value=100, max_value=100000, value=1000, step=100)
 
     if st.button("🚀 Ejecutar Backtest", type="primary", use_container_width=True):
         with st.spinner("Ejecutando backtest..."):
             try:
-                _run_backtest(conn, symbol, interval, strategy, fast, slow, capital)
+                _run_backtest(conn, symbol, interval, strategy, params_override or None, capital)
 
             except Exception as e:
                 st.error(f"Error ejecutando backtest: {e}")
+                logger.exception("Error running backtest")
                 import traceback
                 st.code(traceback.format_exc())
 

@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
-from app.risk.circuit_breakers import CircuitBreakers, CircuitBreakerResult
+from app.risk.circuit_breakers import CircuitBreakerResult, CircuitBreakers
 from app.risk.exposure_limits import (
     ExposureCheckResult,
     PortfolioState,
     check_exposure,
 )
 from app.risk.position_sizing import PositionSizeResult, calculate_position_size
-from app.risk.stop_loss import StopLossResult, fixed_percentage
+from app.risk.stop_loss import StopLossResult, fixed_percentage, take_profit_dynamic
+from app.risk.trailing_stop import TrailingStopConfig
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -31,6 +35,7 @@ class RiskDecision:
     rejection_reason: str = ""
     position_size: Optional[PositionSizeResult] = None
     stop_loss: Optional[StopLossResult] = None
+    take_profit: Optional[StopLossResult] = None
     exposure: Optional[ExposureCheckResult] = None
     circuit_breaker: Optional[CircuitBreakerResult] = None
     adjusted_position_value: Optional[float] = None
@@ -51,6 +56,8 @@ class RiskManager:
         max_altcoin_pct: float = 0.40,
         require_stop_loss: bool = True,
         altcoin_symbols: set[str] | None = None,
+        trailing_stop_config: TrailingStopConfig | None = None,
+        take_profit_atr_multiplier: float | None = None,
     ) -> None:
         self._circuit_breakers = circuit_breakers or CircuitBreakers()
         self._max_position_pct = max_position_pct
@@ -61,11 +68,31 @@ class RiskManager:
         self._max_altcoin_pct = max_altcoin_pct
         self._require_stop_loss = require_stop_loss
         self._altcoin_symbols = altcoin_symbols or set()
+        self._trailing_stop_config = trailing_stop_config
+        self._take_profit_atr_multiplier = take_profit_atr_multiplier
 
     @property
     def circuit_breakers(self) -> CircuitBreakers:
         """Expose circuit-breaker state and controls."""
         return self._circuit_breakers
+
+    @property
+    def trailing_stop_config(self) -> TrailingStopConfig | None:
+        """Trailing stop configuration if enabled."""
+        return self._trailing_stop_config
+
+    @trailing_stop_config.setter
+    def trailing_stop_config(self, value: TrailingStopConfig | None) -> None:
+        self._trailing_stop_config = value
+
+    @property
+    def take_profit_atr_multiplier(self) -> float | None:
+        """ATR multiplier for dynamic take-profit, None disables it."""
+        return self._take_profit_atr_multiplier
+
+    @take_profit_atr_multiplier.setter
+    def take_profit_atr_multiplier(self, value: float | None) -> None:
+        self._take_profit_atr_multiplier = value
 
     def evaluate(
         self,
@@ -73,6 +100,7 @@ class RiskManager:
         portfolio: PortfolioState,
         stop_loss_price: float | None = None,
         stop_loss_pct: float | None = None,
+        atr_value: float | None = None,
     ) -> RiskDecision:
         """Evaluate a proposed trade and return approval details or rejection reason."""
         warnings: list[str] = []
@@ -97,6 +125,17 @@ class RiskManager:
             return decision
 
         decision.stop_loss = sl_result
+
+        tp_result: StopLossResult | None = None
+        if self._take_profit_atr_multiplier is not None and atr_value is not None:
+            tp_result = take_profit_dynamic(
+                entry_price=proposal.entry_price,
+                atr_value=atr_value,
+                atr_multiplier=self._take_profit_atr_multiplier,
+                direction=proposal.direction,
+            )
+            if not tp_result.rejected:
+                decision.take_profit = tp_result
 
         ps_result = calculate_position_size(
             capital=proposal.capital,

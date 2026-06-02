@@ -34,29 +34,37 @@ class Candle:
     taker_buy_quote_asset_volume: float
 
 
+def _chunked(seq: list, size: int):
+    """Yield successive chunks of *size* from *seq*."""
+    for i in range(0, len(seq), size):
+        yield seq[i:i + size]
+
+
 def store_klines(connection: sqlite3.Connection, symbol: str, interval: str, klines: list[list]) -> int:
     """Store raw Binance kline data into the candles table. Returns rows inserted."""
-    rows = [
-        (
-            symbol.upper(),
-            interval,
-            int(k[0]),
-            float(k[1]),
-            float(k[2]),
-            float(k[3]),
-            float(k[4]),
-            float(k[5]),
-            int(k[6]),
-            float(k[7]),
-            int(k[8]),
-            float(k[9]),
-            float(k[10]),
-        )
-        for k in klines
-    ]
+    chunk_size = 500
 
-    connection.executemany(
-        """
+    def _rows(batch: list[list]):
+        return [
+            (
+                symbol.upper(),
+                interval,
+                int(k[0]),
+                float(k[1]),
+                float(k[2]),
+                float(k[3]),
+                float(k[4]),
+                float(k[5]),
+                int(k[6]),
+                float(k[7]),
+                int(k[8]),
+                float(k[9]),
+                float(k[10]),
+            )
+            for k in batch
+        ]
+
+    sql = """
         INSERT OR REPLACE INTO candles (
             symbol,
             interval,
@@ -72,11 +80,14 @@ def store_klines(connection: sqlite3.Connection, symbol: str, interval: str, kli
             taker_buy_base_asset_volume,
             taker_buy_quote_asset_volume
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        rows,
-    )
-    connection.commit()
-    return len(rows)
+    """
+
+    total = 0
+    for chunk in _chunked(klines, chunk_size):
+        connection.executemany(sql, _rows(chunk))
+        connection.commit()
+        total += len(chunk)
+    return total
 
 
 def download_and_store(client: BinanceClient, connection: sqlite3.Connection, symbol: str, interval: str, start_time_ms: int | None, end_time_ms: int | None, limit: int) -> DownloadResult:

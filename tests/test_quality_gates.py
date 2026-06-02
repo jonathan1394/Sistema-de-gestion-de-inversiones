@@ -1,12 +1,15 @@
-from pathlib import Path
-
-import pytest
+from types import SimpleNamespace
 
 from quality.gates import (
-    Phase1Gate, Phase2Gate, Phase3Gate,
-    Phase4Gate, Phase5Gate, Phase6Gate,
+    Phase1Gate,
+    Phase2Gate,
+    Phase3Gate,
+    Phase4Gate,
+    Phase5Gate,
+    Phase6Gate,
 )
 from quality.gates.base_gate import GateResult
+from quality.quality_agent import QualityAgent
 
 
 class TestPhaseGates:
@@ -85,3 +88,46 @@ class TestRequiredFilesCheck:
         gate = Phase1Gate(rules, str(tmp_path))
         missing = gate.check_required_files(["tmp_test_file.py"])
         assert missing == []
+
+
+class TestQualityAgent:
+    def test_run_all_gates_respects_fail_fast(self, tmp_path):
+        agent = QualityAgent(str(tmp_path))
+        agent.rules = {
+            "agent": {"fail_fast": True},
+            "phases": {
+                "phase1_data": {"required_files": ["missing.py"]},
+                "phase2_backtesting": {"required_files": ["also_missing.py"]},
+            },
+        }
+
+        results = agent.run_all_gates()
+
+        assert len(results) == 1
+        assert not results[0].passed
+
+    def test_run_external_tools_skips_missing_tools(self, tmp_path, monkeypatch):
+        agent = QualityAgent(str(tmp_path))
+        monkeypatch.setattr("quality.quality_agent.shutil.which", lambda _name: None)
+
+        result = agent.run_external_tools()
+
+        assert result.passed
+        assert len(result.warnings) == 2
+        assert result.metrics["ruff"] == "missing"
+        assert result.metrics["mypy"] == "missing"
+
+    def test_run_external_tools_reports_failures(self, tmp_path, monkeypatch):
+        agent = QualityAgent(str(tmp_path))
+        monkeypatch.setattr("quality.quality_agent.shutil.which", lambda name: f"/bin/{name}")
+
+        def fake_run(*_args, **_kwargs):
+            return SimpleNamespace(returncode=1, stdout="tool failed", stderr="")
+
+        monkeypatch.setattr("quality.quality_agent.subprocess.run", fake_run)
+
+        result = agent.run_external_tools()
+
+        assert not result.passed
+        assert len(result.errors) == 2
+        assert "ruff failed" in result.errors[0]

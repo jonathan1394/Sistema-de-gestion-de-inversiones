@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 
 import pandas as pd
 import streamlit as st
@@ -12,6 +13,8 @@ from app.config import load_settings
 from app.database.connection import get_connection
 from app.database.migrations import run_migrations
 from app.paper_trading.storage import get_trades, init_portfolio_tables
+
+logger = logging.getLogger(__name__)
 
 
 def _render_upload_tab() -> None:
@@ -32,6 +35,7 @@ def _render_upload_tab() -> None:
         st.error("Invalid JSON file.")
     except Exception as e:
         st.error(f"Analysis failed: {e}")
+        logger.exception("Error analyzing journal upload")
 
 
 def _render_analysis(trades: list) -> None:
@@ -104,15 +108,20 @@ def _render_paper_trades_tab(conn) -> None:
 
 def render() -> None:
     """Render journal tabs for uploaded JSON and stored paper trades."""
-    st.markdown('<div class="page-title">Trading Journal</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-subtitle">Analisis de historial de trades para detectar patrones y mejorar ejecucion.</div>', unsafe_allow_html=True)
-    config = load_settings()
-    conn = get_connection(config.database.path)
-    run_migrations(conn)
-    init_portfolio_tables(conn)
+    try:
+        st.markdown('<div class="page-title">Trading Journal</div>', unsafe_allow_html=True)
+        st.markdown('<div class="page-subtitle">Analisis de historial de trades para detectar patrones y mejorar ejecucion.</div>', unsafe_allow_html=True)
+        config = load_settings()
+        conn = get_connection(config.database.path)
+        run_migrations(conn)
+        init_portfolio_tables(conn)
 
-    tab1, tab2 = st.tabs(["Upload JSON", "Paper Trades History"])
-    with tab1:
-        _render_upload_tab()
-    with tab2:
-        _render_paper_trades_tab(conn)
+        tab1, tab2 = st.tabs(["Upload JSON", "Paper Trades History"])
+        with tab1:
+            _render_upload_tab()
+        with tab2:
+            _render_paper_trades_tab(conn)
+    except Exception:
+        logger.exception("Error rendering journal page")
+        st.error("Error loading journal page.")
+        st.stop()

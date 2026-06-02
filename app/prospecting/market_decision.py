@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
 
 from app.ai.market_summary import generate_market_summary
 from app.data.market_data import get_candles
-from app.database.connection import get_connection
-from app.config import load_settings
 
+logger = logging.getLogger(__name__)
 
 def analyze_timeframe(conn, symbol: str, interval: str) -> dict | None:
     """Build summary metrics for one timeframe if data is sufficient."""
@@ -52,10 +53,10 @@ def analyze_timeframe(conn, symbol: str, interval: str) -> dict | None:
 
 def compute_confluence(results: list[dict]) -> int:
     """Return number of bullish trends across timeframe results."""
-    TREND_ORDER = {"strong_up": 5, "up": 4, "sideways": 3, "down": 2, "strong_down": 1}
+    trend_order = {"strong_up": 5, "up": 4, "sideways": 3, "down": 2, "strong_down": 1}
     bullish = 0
     for r in results:
         t = r.get("trend", "sideways")
-        if TREND_ORDER.get(t, 3) >= 4:
+        if trend_order.get(t, 3) >= 4:
             bullish += 1
     return bullish

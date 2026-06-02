@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 
 from app.config import load_settings
 from app.data.binance_client import BinanceClient
 from app.database.connection import get_connection
 from app.database.migrations import run_migrations
+from app.logging_setup import setup_logging
 from app.prospecting.db import (
     add_prospect,
     archive_prospect,
@@ -15,6 +17,8 @@ from app.prospecting.db import (
     remove_prospect,
 )
 from app.prospecting.screener import ProspectScreener
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -81,7 +85,7 @@ def cmd_list(args: argparse.Namespace) -> None:
     else:
         prospects = get_all_prospects(conn)
     if not prospects:
-        print("No prospects found.")
+        logger.info("No prospects found.")
         return
     print(f"{'Symbol':12s} {'Interval':6s} {'Status':10s} {'Score':>6s}  {'Trend':14s} {'Signals':>7s}  {'Last Analysis':16s}")
     print("-" * 75)
@@ -94,23 +98,23 @@ def cmd_add(args: argparse.Namespace) -> None:
     conn, _ = _make_connection()
     existing = add_prospect(conn, args.symbol, args.interval, notes=args.notes)
     if existing.last_analysis_at is None:
-        print(f"Added {args.symbol} ({args.interval}) as a prospect.")
+        logger.info("Added %s (%s) as a prospect.", args.symbol, args.interval)
     else:
-        print(f"{args.symbol} ({args.interval}) already in prospects.")
+        logger.info("%s (%s) already in prospects.", args.symbol, args.interval)
 
 
 def cmd_remove(args: argparse.Namespace) -> None:
     conn, _ = _make_connection()
     if remove_prospect(conn, args.symbol, args.interval):
-        print(f"Removed {args.symbol} ({args.interval}) from prospects.")
+        logger.info("Removed %s (%s) from prospects.", args.symbol, args.interval)
     else:
-        print(f"{args.symbol} ({args.interval}) not found in prospects.")
+        logger.info("%s (%s) not found in prospects.", args.symbol, args.interval)
 
 
 def cmd_archive(args: argparse.Namespace) -> None:
     conn, _ = _make_connection()
     archive_prospect(conn, args.symbol, args.interval)
-    print(f"Archived {args.symbol} ({args.interval}).")
+    logger.info("Archived %s (%s).", args.symbol, args.interval)
 
 
 def cmd_scan(args: argparse.Namespace) -> None:
@@ -118,7 +122,7 @@ def cmd_scan(args: argparse.Namespace) -> None:
     if args.symbol:
         result = screener.run_on_symbol(args.symbol, args.interval)
         if result is None:
-            print(f"Could not screen {args.symbol} ({args.interval}) — insufficient data.")
+            logger.warning("Could not screen %s (%s) — insufficient data.", args.symbol, args.interval)
             return
         assets = [result]
     else:
@@ -131,14 +135,14 @@ def cmd_report(args: argparse.Namespace) -> None:
     conn, _ = _make_connection()
     prospects = get_all_prospects(conn)
     if not prospects:
-        print("No prospects in database. Add some with `add` first.")
+        logger.info("No prospects in database. Add some with `add` first.")
         return
 
     watching = [p for p in prospects if p.status == "watching"]
     active = [p for p in prospects if p.status == "active"]
     archived = [p for p in prospects if p.status == "archived"]
 
-    print(f"\nProspect Report")
+    print("\nProspect Report")
     print(f"{'='*50}")
     print(f"Total prospects: {len(prospects)}")
     print(f"  Watching: {len(watching)}")
@@ -153,7 +157,7 @@ def cmd_report(args: argparse.Namespace) -> None:
 
 def _print_results(assets) -> None:
     if not assets:
-        print("No assets screened.")
+        logger.info("No assets screened.")
         return
     print(f"\n{'Symbol':12s} {'Score':>6s} {'Return':>7s} {'Vol':>5s} {'Trend':14s} {'Signals':>7s}")
     print("-" * 55)
@@ -164,6 +168,7 @@ def _print_results(assets) -> None:
 
 def main() -> None:
     args = parse_args()
+    setup_logging()
 
     action_map = {
         "list": cmd_list,
@@ -179,7 +184,7 @@ def main() -> None:
     if handler:
         handler(args)
     else:
-        print(f"Unknown action: {args.action}")
+        logger.error("Unknown action: %s", args.action)
         sys.exit(1)
 
 

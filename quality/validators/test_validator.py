@@ -13,6 +13,8 @@ class TestValidationResult:
 
 
 class TestValidator:
+    __test__ = False
+
     def __init__(self, rules: dict[str, Any], project_path: str):
         self.rules = rules.get("testing", {})
         self.project_path = Path(project_path)
@@ -38,19 +40,12 @@ class TestValidator:
 
         test_names = {t.stem for t in test_files}
         for required in must_have:
-            module_name = required.replace("/", "_").replace(".py", "")
-            expected_test = f"test_{module_name}"
-            if expected_test not in test_names:
-                alt_patterns = [
-                    f"test_{module_name.split('_')[0]}",
-                    f"test_{module_name.split('_')[-1]}",
-                ]
-                found_alt = any(a in test_names for a in alt_patterns)
-                if not found_alt:
-                    warnings.append(
-                        f"No test file found for required module: {required}. "
-                        f"Expected: tests/{expected_test}.py"
-                    )
+            candidates = self._test_name_candidates(required)
+            if not any(candidate in test_names for candidate in candidates):
+                errors.append(
+                    f"No test file found for required module: {required}. "
+                    f"Expected one of: {', '.join(f'tests/{c}.py' for c in candidates)}"
+                )
 
         return TestValidationResult(
             passed=len(errors) == 0,
@@ -58,6 +53,24 @@ class TestValidator:
             warnings=warnings,
             coverage={"test_files_found": len(test_files)},
         )
+
+    def _test_name_candidates(self, required: str) -> set[str]:
+        path = Path(required).with_suffix("")
+        parts = list(path.parts)
+        if parts and parts[0] == "app":
+            parts = parts[1:]
+        if not parts:
+            return set()
+
+        module_name = "_".join(parts)
+        package = parts[0]
+        leaf = parts[-1]
+        return {
+            f"test_{module_name}",
+            f"test_{package}",
+            f"test_{leaf}",
+            f"test_{package}_{leaf}",
+        }
 
     def validate_test_quality(self) -> TestValidationResult:
         errors: list[str] = []

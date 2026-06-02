@@ -1,8 +1,7 @@
 import ast
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -172,7 +171,12 @@ class CodeValidator:
         errors: list[str] = []
         warnings: list[str] = []
 
-        for validator in [self.validate_complexity, self.validate_imports]:
+        validators = [
+            self.validate_complexity,
+            self.validate_imports,
+            self.validate_unused_imports,
+        ]
+        for validator in validators:
             result = validator()
             errors.extend(result.errors)
             warnings.extend(result.warnings)

@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import functools
+import logging
 import os
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class BinanceConfig:
@@ -87,6 +91,8 @@ class AppConfig:
     timeframes: list[str] = field(default_factory=list)
     alerts: dict = field(default_factory=dict)
     prospecting: dict = field(default_factory=dict)
+    binance_api_key: str = field(default="", repr=False)
+    binance_api_secret: str = field(default="", repr=False)
 
 
 def _to_bool(value: str | None, default: bool) -> bool:
@@ -95,8 +101,12 @@ def _to_bool(value: str | None, default: bool) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+@functools.lru_cache(maxsize=1)
 def load_settings(settings_path: str | Path = "settings.yaml") -> AppConfig:
-    """Load app settings from YAML and env vars into typed config."""
+    """Load app settings from YAML and env vars into typed config.
+
+    Results are cached. Call ``reload_settings()`` to force a fresh load.
+    """
     settings_file = Path(settings_path)
     if not settings_file.exists():
         raise FileNotFoundError(f"Settings file not found: {settings_file}")
@@ -112,6 +122,24 @@ def load_settings(settings_path: str | Path = "settings.yaml") -> AppConfig:
     trading_raw = raw.get("trading", {})
     fees_raw = raw.get("fees", {})
     backtesting_raw = raw.get("backtesting", {})
+
+    if binance_raw.get("api_key") or binance_raw.get("api_secret"):
+        warnings.warn(
+            "Binance API credentials must be configured with BINANCE_API_KEY and "
+            "BINANCE_API_SECRET environment variables, not settings.yaml.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+
+    alerts_raw = raw.get("alerts", {}) or {}
+    telegram_raw = alerts_raw.get("notifications", {}).get("telegram", {})
+    if telegram_raw.get("bot_token") or telegram_raw.get("chat_id"):
+        warnings.warn(
+            "Telegram credentials should be configured with TELEGRAM_BOT_TOKEN and "
+            "TELEGRAM_CHAT_ID environment variables, not settings.yaml.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
     mode = os.getenv("APP_MODE", app_raw.get("mode", "analysis"))
     kill_switch = _to_bool(os.getenv("KILL_SWITCH"), app_raw.get("kill_switch", True))
@@ -179,6 +207,14 @@ def load_settings(settings_path: str | Path = "settings.yaml") -> AppConfig:
         ),
         symbols=[str(s) for s in (raw.get("symbols", []) or [])],
         timeframes=[str(t) for t in (raw.get("timeframes", []) or [])],
-        alerts=raw.get("alerts", {}) or {},
+        alerts=alerts_raw,
         prospecting=raw.get("prospecting", {}) or {},
+        binance_api_key=os.getenv("BINANCE_API_KEY", ""),
+        binance_api_secret=os.getenv("BINANCE_API_SECRET", ""),
     )
+
+
+def reload_settings(settings_path: str | Path = "settings.yaml") -> AppConfig:
+    """Force a fresh load of the settings, bypassing the cache."""
+    load_settings.cache_clear()
+    return load_settings(settings_path)

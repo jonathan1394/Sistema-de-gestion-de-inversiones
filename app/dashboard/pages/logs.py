@@ -3,25 +3,31 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 LOGS_FILE = Path("data/system_logs.jsonl")
 
+logger = logging.getLogger(__name__)
+
 
 def _append_log(level: str, module: str, message: str) -> None:
-    LOGS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    entry = {
-        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
-        "level": level,
-        "module": module,
-        "message": message,
-    }
-    with LOGS_FILE.open("a") as f:
-        f.write(json.dumps(entry) + "\n")
+    try:
+        LOGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        entry = {
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+            "level": level,
+            "module": module,
+            "message": message,
+        }
+        with LOGS_FILE.open("a") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:
+        logger.exception("Error appending log entry")
 
 
 def _read_logs() -> list[dict]:
@@ -35,6 +41,7 @@ def _read_logs() -> list[dict]:
                 try:
                     entries.append(json.loads(line))
                 except json.JSONDecodeError:
+                    logger.exception("Error decoding JSON line in logs")
                     pass
     return entries
 
@@ -52,9 +59,13 @@ def render() -> None:
             st.rerun()
     with col3:
         if st.button("🗑️ Limpiar Logs", use_container_width=True):
-            if LOGS_FILE.exists():
-                LOGS_FILE.unlink()
-            st.success("Logs eliminados.")
+            try:
+                if LOGS_FILE.exists():
+                    LOGS_FILE.unlink()
+                st.success("Logs eliminados.")
+            except Exception:
+                logger.exception("Error clearing log file")
+                st.error("Error clearing log file.")
             st.rerun()
 
     logs = _read_logs()

@@ -48,7 +48,7 @@ class ConsoleChannel(AlertChannel):
         reset = "\033[0m" if color else ""
         icon = {"INFO": "ℹ", "WARNING": "⚠", "ERROR": "✖", "TRADE": "💰"}.get(alert.level, "○")
         line = f"{color}{icon} [{alert.timestamp}] [{alert.category}] {alert.title}: {alert.message}{reset}"
-        print(line, file=sys.stderr)
+        logger.info("%s", line)
         return True
 
 

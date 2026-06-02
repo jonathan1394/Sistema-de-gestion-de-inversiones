@@ -3,11 +3,13 @@
 from unittest.mock import MagicMock
 
 from app.config import AppConfig, BinanceConfig, DatabaseConfig
+from app.execution.binance_executor import PermissionCheck
 from app.execution.safety_checks import (
-    check_mode,
+    check_binance_permissions,
     check_kill_switch,
-    check_order_size,
     check_market_conditions,
+    check_mode,
+    check_order_size,
     run_safety_checks,
 )
 
@@ -57,6 +59,36 @@ class TestCheckKillSwitch:
         config = _make_config(kill_switch=False)
         result = check_kill_switch(config)
         assert result.safe
+
+
+class TestCheckBinancePermissions:
+    def test_blocks_withdraw_permission(self):
+        executor = MagicMock()
+        executor.validate_permissions.return_value = PermissionCheck(
+            can_trade=True,
+            can_withdraw_assets=True,
+            read_only=False,
+            valid=True,
+        )
+
+        result = check_binance_permissions(executor)
+
+        assert not result.safe
+        assert "withdrawal permission" in result.reason
+
+    def test_warns_read_only_key(self):
+        executor = MagicMock()
+        executor.validate_permissions.return_value = PermissionCheck(
+            can_trade=False,
+            can_withdraw_assets=False,
+            read_only=True,
+            valid=True,
+        )
+
+        result = check_binance_permissions(executor)
+
+        assert result.safe
+        assert result.warnings
 
 
 class TestCheckOrderSize:

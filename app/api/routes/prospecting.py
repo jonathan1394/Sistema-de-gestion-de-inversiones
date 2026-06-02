@@ -2,17 +2,24 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Body, Query, Request
 
 from app.data.binance_client import BinanceClient
 from app.database.connection import get_connection
-from app.prospecting.db import Prospect, add_prospect, get_all_prospects, get_prospect, update_prospect_status
+from app.prospecting.db import (
+    Prospect,
+    add_prospect,
+    get_all_prospects,
+    get_prospect,
+    update_prospect_status,
+)
 from app.prospecting.ranking import generate_ranking
 from app.prospecting.screener import ProspectScreener
 
-
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/prospecting", tags=["prospecting"])
 
 
@@ -77,12 +84,12 @@ def scan(request: Request, payload: dict[str, Any] = Body(default={})):  # noqa:
     interval = str(payload.get("interval") or s.prospecting.get("default_interval", "1d"))
     if symbol:
         screened = screener.run_on_symbol(str(symbol), interval=interval)
-        data = screened.__dict__ if screened is not None else None
-        return {"status": "ok", "data": data, "error": None, "meta": {}}
+        single = screened.__dict__ if screened is not None else None
+        return {"status": "ok", "data": single, "error": None, "meta": {}}
 
     result = screener.run_on_all()
-    data = [a.__dict__ for a in result.assets]
-    return {"status": "ok", "data": data, "error": None, "meta": {"count": len(data)}}
+    assets = [a.__dict__ for a in result.assets]
+    return {"status": "ok", "data": assets, "error": None, "meta": {"count": len(assets)}}
 
 
 @router.get("/ranking")
@@ -90,7 +97,7 @@ def ranking(request: Request) -> dict[str, Any]:
     s = request.app.state.settings
     conn = get_connection(s.database.path)
     items = get_all_prospects(conn)
-    ranks = generate_ranking(items)
+    ranks = generate_ranking(items, settings=s, conn=conn)
     data = [r.__dict__ for r in ranks]
     return {"status": "ok", "data": data, "error": None, "meta": {"count": len(data)}}
 
@@ -109,7 +116,7 @@ def decision(request: Request, symbol: str, interval: str = Query(default="1d"))
             "meta": {},
         }
     # Ranking already computes confluence/recommendation.
-    r = generate_ranking([p])[0]
+    r = generate_ranking([p], settings=s, conn=conn)[0]
     return {"status": "ok", "data": r.__dict__, "error": None, "meta": {}}
 
 

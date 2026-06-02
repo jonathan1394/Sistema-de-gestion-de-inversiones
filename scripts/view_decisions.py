@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
-from typing import List
+import logging
 
 from app.config import load_settings
 from app.database.connection import get_connection
 from app.governance.decision_log import get_recent_decisions
+from app.logging_setup import setup_logging
+
+logger = logging.getLogger(__name__)
 
 
 def format_decision(d) -> str:
@@ -43,6 +45,8 @@ def main() -> None:
         help="Show only rejected decisions",
     )
     args = parser.parse_args()
+
+    setup_logging()
 
     settings = load_settings()
     with get_connection(settings.database.path) as conn:

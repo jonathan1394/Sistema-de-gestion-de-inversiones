@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -15,7 +16,10 @@ from app.backtesting.reports import (
 from app.config import load_settings
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
+from app.logging_setup import setup_logging
 from app.strategies.moving_average import MovingAverageCrossover
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -42,6 +46,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     config = load_settings(args.settings)
+    setup_logging()
     conn = get_connection(config.database.path)
 
     candles = get_candles(

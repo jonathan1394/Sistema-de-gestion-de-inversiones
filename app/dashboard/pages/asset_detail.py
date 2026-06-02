@@ -2,20 +2,23 @@
 
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
 import streamlit as st
 
 from app.ai.market_summary import generate_market_summary
 from app.backtesting.comparator import compare_strategies
 from app.config import load_settings
-from app.data.binance_client import BinanceClient
+from app.dashboard.helpers import candles_to_dataframe, get_current_price
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
-from app.database.migrations import run_migrations
-from app.governance.decision_engine import evaluate_investment_decision, InvestmentDecision
+from app.governance.decision_engine import evaluate_investment_decision
+from app.paper_trading.storage import record_trade, upsert_position
 from app.prospecting.db import get_all_prospects, get_prospect
 from app.prospecting.scoring import get_recommendation
-from app.paper_trading.storage import record_trade, upsert_position
+
+logger = logging.getLogger(__name__)
 
 
 def analyze_timeframe(conn, symbol: str, interval: str) -> dict | None:
@@ -121,7 +124,7 @@ def _render_backtest_comparison(conn, symbol: str) -> None:
             if len(candles) < 50:
                 st.warning("Insufficient data.")
                 return
-            data = _candles_to_df(candles)
+            data = candles_to_dataframe(candles)
             bt_result = compare_strategies(data=data, symbol=symbol, interval="4h")
             rows = [
                 {
@@ -138,17 +141,6 @@ def _render_backtest_comparison(conn, symbol: str) -> None:
                 st.success(f"Best: **{best.strategy_name}** -- Sharpe {best.metrics.sharpe_ratio:.2f}, ROI {best.metrics.roi_pct:+.2f}%")
         except Exception as e:
             st.error(f"Error: {e}")
-
-
-def _candles_to_df(candles: list) -> pd.DataFrame:
-    return pd.DataFrame({
-        "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
-        "open": [c.open for c in candles],
-        "high": [c.high for c in candles],
-        "low": [c.low for c in candles],
-        "close": [c.close for c in candles],
-        "volume": [c.volume for c in candles],
-    })
 
 
 def render() -> None:
@@ -196,7 +188,7 @@ def render() -> None:
 
     # Show decision details
     if decision.action == "PAPER_BUY" and decision.approved:
-        st.success(f"Esta operación está **aprobada** para ejecución paper.")
+        st.success("Esta operación está **aprobada** para ejecución paper.")
         # Manual amount input
         amount_input = st.number_input(
             f"Monto a invertir (USDT) para {symbol}",
@@ -220,7 +212,7 @@ def render() -> None:
                     # Record the trade
                     try:
                         # Fetch current price for execution
-                        price = _get_current_price(conn, symbol)
+                        price = get_current_price(conn, symbol)
                         if price is None or price <= 0:
                             st.error("No se pudo obtener el precio actual para ejecutar la operación.")
                         else:
@@ -274,18 +266,3 @@ def render() -> None:
 
     if st.button("Refresh", use_container_width=True):
         st.rerun()
-
-
-def _get_current_price(connection: sqlite3.Connection, symbol: str) -> Optional[float]:
-    """Fetch the latest close price for symbol from candles (prefer 1h, then 4h, then 1d)."""
-    for interval in ("1h", "4h", "1d"):
-        candles = get_candles(
-            connection=connection,
-            symbol=symbol,
-            interval=interval,
-            limit=1,
-            desc=True,
-        )
-        if candles and len(candles) > 0:
-            return float(candles[0].close)
-    return None

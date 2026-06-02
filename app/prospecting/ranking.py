@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import logging
+import sqlite3
 from dataclasses import dataclass
 from typing import List, Optional
 
-from app.prospecting.db import Prospect
-from app.prospecting.scoring import get_recommendation
-from app.prospecting.market_decision import analyze_timeframe, compute_confluence
+from app.config import AppConfig, load_settings
 from app.database.connection import get_connection
-from app.config import load_settings
+from app.prospecting.db import Prospect
+from app.prospecting.market_decision import analyze_timeframe, compute_confluence
+from app.prospecting.scoring import get_recommendation
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class AssetRanking:
@@ -28,7 +31,11 @@ class AssetRanking:
     return_pct_1d: Optional[float] = None
 
 
-def generate_ranking(prospects: List[Prospect]) -> List[AssetRanking]:
+def generate_ranking(
+    prospects: List[Prospect],
+    settings: AppConfig | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> List[AssetRanking]:
     """Generate a ranked list of assets from prospects.
 
     Parameters
@@ -41,8 +48,9 @@ def generate_ranking(prospects: List[Prospect]) -> List[AssetRanking]:
     List[AssetRanking]
         List of ranked assets, sorted by score descending.
     """
-    settings = load_settings()
-    conn = get_connection(settings.database.path)
+    settings = settings or load_settings()
+    conn = conn or get_connection(settings.database.path)
+    recommendation_cfg = settings.prospecting.get("recommendation", {})
 
     rankings: List[AssetRanking] = []
     for prospect in prospects:
@@ -69,11 +77,11 @@ def generate_ranking(prospects: List[Prospect]) -> List[AssetRanking]:
         recommendation_obj = get_recommendation(
             score=prospect.score,
             confluence=confluence,
-            invertir_threshold=settings.prospecting.get("recommendation", {}).get("invertir_threshold", 0.75),
-            vigilat_threshold=settings.prospecting.get("recommendation", {}).get("vigilar_threshold", 0.60),
-            neutral_threshold=settings.prospecting.get("recommendation", {}).get("neutral_threshold", 0.40),
-            min_confluence_invertir=settings.prospecting.get("recommendation", {}).get("min_confluence_for_invertir", 2),
-            min_confluence_vigilat=settings.prospecting.get("recommendation", {}).get("min_confluence_for_vigilar", 1),
+            invertir_threshold=recommendation_cfg.get("invertir_threshold", 0.75),
+            vigilat_threshold=recommendation_cfg.get("vigilar_threshold", 0.60),
+            neutral_threshold=recommendation_cfg.get("neutral_threshold", 0.40),
+            min_confluence_invertir=recommendation_cfg.get("min_confluence_for_invertir", 2),
+            min_confluence_vigilat=recommendation_cfg.get("min_confluence_for_vigilar", 1),
         )
 
         # Build reason string

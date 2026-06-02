@@ -1,6 +1,7 @@
 """Alerts package exports for rules, channels, and manager."""
 
 from app.alerts.channels import (
+    HISTORY_FILE,
     Alert,
     AlertChannel,
     AlertManager,
@@ -8,9 +9,14 @@ from app.alerts.channels import (
     DesktopChannel,
     TelegramChannel,
     build_alert_manager,
-    HISTORY_FILE,
 )
-from app.alerts.engine import AlertEngine, AlertRule, price_alert_rule, signal_alert_rule, risk_alert_rule
+from app.alerts.engine import (
+    AlertEngine,
+    AlertRule,
+    price_alert_rule,
+    risk_alert_rule,
+    signal_alert_rule,
+)
 
 __all__ = [
     "Alert",

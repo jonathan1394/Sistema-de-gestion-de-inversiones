@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -16,6 +17,7 @@ from app.strategies.rebalance import RebalanceStrategy
 from app.strategies.rsi_strategy import RSIStrategy
 from app.strategies.trend_following import TrendFollowing
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class StrategyMetrics:

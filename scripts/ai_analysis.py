@@ -2,20 +2,23 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 from pathlib import Path
 
 import pandas as pd
 
-from app.ai.market_summary import generate_market_summary, format_summary
-from app.ai.signal_explainer import explain_signal, batch_explain
 from app.ai.journal_analyzer import generate_journal_report
+from app.ai.market_summary import format_summary, generate_market_summary
+from app.ai.signal_explainer import explain_signal
 from app.config import load_settings
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
-from app.strategies.base_strategy import Signal
+from app.logging_setup import setup_logging
 from app.strategies.moving_average import MovingAverageCrossover
 from app.strategies.rsi_strategy import RSIStrategy
 from app.strategies.trend_following import TrendFollowing
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -56,7 +59,7 @@ def cmd_market(args: argparse.Namespace) -> None:
     )
 
     if len(candles) < 10:
-        print(f"Not enough data for {args.symbol} ({args.interval}). Download first.")
+        logger.info("Not enough data for %s (%s). Download first.", args.symbol, args.interval)
         return
 
     data = pd.DataFrame({
@@ -85,7 +88,7 @@ def cmd_signals(args: argparse.Namespace) -> None:
     )
 
     if len(candles) < 50:
-        print(f"Not enough data (got {len(candles)}, need 50+).")
+        logger.info("Not enough data (got %d, need 50+).", len(candles))
         return
 
     data = pd.DataFrame({
@@ -108,7 +111,7 @@ def cmd_signals(args: argparse.Namespace) -> None:
     result = strategy.generate_signals(data)
 
     if not result.signals:
-        print("No signals generated.")
+        logger.info("No signals generated.")
         return
 
     explanations = [explain_signal(s, data) for s in result.signals[-5:]]
@@ -126,7 +129,7 @@ def cmd_signals(args: argparse.Namespace) -> None:
 
 def cmd_journal(args: argparse.Namespace) -> None:
     if not args.file.exists():
-        print(f"File not found: {args.file}")
+        logger.info("File not found: %s", args.file)
         return
 
     with args.file.open("r") as f:
@@ -159,6 +162,7 @@ def cmd_journal(args: argparse.Namespace) -> None:
 
 def main() -> None:
     args = parse_args()
+    setup_logging()
 
     if args.command == "market":
         cmd_market(args)

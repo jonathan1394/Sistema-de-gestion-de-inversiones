@@ -47,3 +47,16 @@ Comprehensive gate/validator system at `quality/`. Gates (Phase1–Phase6) verif
 - Position sizing based on risk %, not fixed amounts
 - No futures/leverage in initial version
 - Never commit `.env`, `config/secrets.env`, `*.db`, or `reports/agent_logs/`
+
+## Session Summary — Fase 2 (2026-06-02)
+### Completed
+- **2.1 Strategy Registry**: Auto-discovery via entry_points, fallback import, lazy loading.
+- **2.2 Short Positions**: VirtualPortfolio sell/short/buy/cover, BacktestEngine short entries/exits, trailing stop for shorts (`is_short` param), config `allow_shorts`, metrics track short trades separately.
+- **2.3 Trailing Stop + TP Dinámico**: `TrailingStop` class, `take_profit_dynamic()` based on ATR, integrated into RiskManager and BacktestEngine.
+- **2.4 Data Layer**: `connection_scope()` context manager, `DataAccessObject` class, Alembic migration for indexes, batch store_klines with chunking.
+- **2.5 Dashboard Refactor**: Helpers (`candles_to_dataframe`, `get_current_price`, `get_portfolio_value`, `update_portfolio_prices`, `add_snapshot`), `portfolio_state.py` cleanup, `main.py` explicit imports, `asset_detail.py` deduplication, strategies loaded from config.
+### Test Count: 211 (was 129)
+### Known Issues
+- `asset_detail.py:render()` has high cyclomatic complexity (20) and length (122 lines) — pre-existing
+- `docker-compose.yml` references `app/main.py` which doesn't exist yet
+- `_render_backtest_comparison` calls `compare_strategies` — may not handle empty backtest results gracefully

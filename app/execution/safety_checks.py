@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Optional
 
 from app.config import AppConfig
-from app.execution.binance_executor import BinanceExecutor, PermissionCheck
+from app.execution.binance_executor import BinanceExecutor
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class SafetyResult:
     safe: bool = True
     reason: str = ""
-    warnings: list[str] = None
+    warnings: list[str] | None = None
 
     def __post_init__(self) -> None:
         if self.warnings is None:
@@ -56,7 +58,7 @@ def check_binance_permissions(executor: BinanceExecutor) -> SafetyResult:
     if not perms.valid:
         return SafetyResult(safe=False, reason=perms.message)
 
-    if perms.can_withdraw:
+    if perms.can_withdraw_assets:
         return SafetyResult(
             safe=False,
             reason="CRITICAL: API key has withdrawal permission. Disable immediately.",
@@ -111,7 +113,7 @@ def check_market_conditions(
     return SafetyResult(safe=True)
 
 
-def run_safety_checks(  # noqa: risk validation before execution
+def run_safety_checks(  # noqa: E501 - risk validation before execution
     config: AppConfig,
     executor: Optional[BinanceExecutor] = None,
 ) -> SafetyResult:

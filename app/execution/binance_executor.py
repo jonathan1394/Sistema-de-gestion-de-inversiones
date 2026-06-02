@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -13,6 +14,7 @@ import requests
 
 from app.config import AppConfig
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class AccountBalance:

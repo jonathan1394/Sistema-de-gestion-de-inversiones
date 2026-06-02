@@ -3,9 +3,14 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import sys
 from typing import Dict, List
+
+from app.logging_setup import setup_logging
+
+logger = logging.getLogger(__name__)
 
 def load_settings():
     """Load settings from the app package."""
@@ -81,9 +86,9 @@ def main_menu():
     while True:
         print_header()
         print_menu(options)
-        
+
         choice = input("Selecciona una opción: ").strip()
-        
+
         if choice == "0":
             print("👋 ¡Hasta luego!")
             break
@@ -186,11 +191,12 @@ def main_menu():
                 print("\n👋 Dashboard detenido. Volviendo al menú...")
         else:
             print("❌ Opción no válida. Por favor, selecciona un número del menú.")
-        
+
         input("\nPresiona ENTER para continuar...")
 
 
 if __name__ == "__main__":
+    setup_logging()
     try:
         main_menu()
     except KeyboardInterrupt:

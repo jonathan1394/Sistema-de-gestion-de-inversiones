@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Query, Request
 
 from app.database.connection import get_connection
-from app.paper_trading.storage import get_all_positions, get_snapshots, get_trades, init_portfolio_tables
+from app.paper_trading.storage import (
+    get_all_positions,
+    get_snapshots,
+    get_trades,
+    init_portfolio_tables,
+)
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 

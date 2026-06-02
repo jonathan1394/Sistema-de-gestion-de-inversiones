@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
-from typing import Optional
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class StopLossResult:
@@ -43,7 +44,7 @@ def fixed_percentage(
 
     return StopLossResult(
         stop_price=round(stop_price, 2),
-        distance_pct=stop_loss_pct * 100,
+        distance_pct=stop_loss_pct,
         method="fixed_pct",
     )
 
@@ -80,6 +81,43 @@ def atr_based(
 
     return StopLossResult(
         stop_price=round(max(stop_price, 0), 2),
-        distance_pct=distance_pct * 100,
+        distance_pct=distance_pct,
         method="atr",
+    )
+
+
+def take_profit_dynamic(
+    entry_price: float,
+    atr_value: float,
+    atr_multiplier: float = 3.0,
+    direction: str = "long",
+    min_tp_pct: float = 0.01,
+    max_tp_pct: float = 0.20,
+) -> StopLossResult:
+    """Calculate a dynamic take-profit based on ATR distance clamped by min/max bounds."""
+    if atr_value <= 0:
+        return StopLossResult(
+            stop_price=0, distance_pct=0, method="atr_tp",
+            rejected=True, rejection_reason="ATR must be positive",
+        )
+
+    distance = atr_value * atr_multiplier
+    distance_pct = distance / entry_price if entry_price > 0 else 0
+
+    if distance_pct < min_tp_pct:
+        distance = entry_price * min_tp_pct
+        distance_pct = min_tp_pct
+    if distance_pct > max_tp_pct:
+        distance = entry_price * max_tp_pct
+        distance_pct = max_tp_pct
+
+    if direction == "long":
+        tp_price = entry_price + distance
+    else:
+        tp_price = entry_price - distance
+
+    return StopLossResult(
+        stop_price=round(max(tp_price, 0), 2),
+        distance_pct=distance_pct,
+        method="atr_tp",
     )

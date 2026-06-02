@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+_Direction = str  # "long" | "short"
 
 
 @dataclass
@@ -16,6 +21,7 @@ class Position:
     current_price: float = 0.0
     unrealized_pnl: float = 0.0
     unrealized_pnl_pct: float = 0.0
+    direction: str = "long"
 
 
 @dataclass
@@ -30,13 +36,17 @@ class PortfolioSnapshot:
 
 
 class VirtualPortfolio:
-    """Track cash, positions, PnL, and snapshots for simulation."""
+    """Track cash, positions, PnL, and snapshots for simulation.
+
+    Supports both long (positive quantity) and short (negative quantity)
+    positions.
+    """
 
     def __init__(self, initial_capital: float = 1000.0) -> None:
         self._initial_capital = initial_capital
         self._cash = initial_capital
         self._positions: dict[str, Position] = {}
-        self._trade_history: list = []
+        self._trade_history: list[dict] = []
         self._snapshots: list[PortfolioSnapshot] = []
         self._peak_value = initial_capital
         self._daily_start_value = initial_capital
@@ -46,44 +56,45 @@ class VirtualPortfolio:
 
     @property
     def cash(self) -> float:
-        """Return available cash balance."""
         return self._cash
 
     @property
     def positions(self) -> dict[str, Position]:
-        """Return copy of open positions map."""
         return dict(self._positions)
 
     @property
     def total_value(self) -> float:
-        """Return cash plus mark-to-market value of positions."""
-        return self._cash + sum(
+        tv = self._cash + sum(
             p.quantity * p.current_price for p in self._positions.values()
+        )
+        return tv
+
+    @property
+    def gross_exposure(self) -> float:
+        return sum(
+            abs(p.quantity * p.current_price) for p in self._positions.values()
         )
 
     @property
     def exposure_pct(self) -> float:
-        """Return invested capital as percentage of total value."""
         tv = self.total_value
         if tv <= 0:
             return 0.0
-        return (tv - self._cash) / tv * 100
+        gross = self.gross_exposure
+        return gross / tv * 100
 
     @property
     def total_pnl(self) -> float:
-        """Return absolute portfolio PnL from initial capital."""
         return self.total_value - self._initial_capital
 
     @property
     def total_pnl_pct(self) -> float:
-        """Return portfolio PnL percentage from initial capital."""
         if self._initial_capital <= 0:
             return 0.0
         return (self.total_value - self._initial_capital) / self._initial_capital * 100
 
     @property
     def drawdown_pct(self) -> float:
-        """Return current drawdown from peak portfolio value."""
         tv = self.total_value
         if tv > self._peak_value:
             self._peak_value = tv
@@ -93,17 +104,14 @@ class VirtualPortfolio:
 
     @property
     def trade_count(self) -> int:
-        """Return number of recorded trade events."""
         return len(self._trade_history)
 
     @property
     def initial_capital(self) -> float:
-        """Return configured starting capital."""
         return self._initial_capital
 
-    def update_prices(self, prices: dict[str, float]) -> None:
-        """Update marked prices and refresh unrealized metrics."""
-        now = datetime.now(timezone.utc)
+    def update_prices(self, prices: dict[str, float], timestamp: Optional[datetime] = None) -> None:
+        now = timestamp or datetime.now(timezone.utc)
         date_key = now.strftime("%Y-%m-%d")
 
         if date_key != self._current_date:
@@ -116,12 +124,17 @@ class VirtualPortfolio:
                 pos = self._positions[symbol]
                 pos.current_price = price
                 pos.unrealized_pnl = pos.quantity * (price - pos.entry_price)
-                pos.unrealized_pnl_pct = (price / pos.entry_price - 1) * 100 if pos.entry_price > 0 else 0.0
+                if pos.entry_price > 0:
+                    if pos.direction == "long":
+                        pos.unrealized_pnl_pct = (price / pos.entry_price - 1) * 100
+                    else:
+                        pos.unrealized_pnl_pct = (1 - price / pos.entry_price) * 100
+                else:
+                    pos.unrealized_pnl_pct = 0.0
 
         self._daily_pnl = self.total_value - self._daily_start_value
 
     def buy(self, symbol: str, quantity: float, price: float, timestamp: Optional[datetime] = None) -> bool:
-        """Execute a virtual buy if enough cash is available."""
         cost = quantity * price
         if cost > self._cash:
             return False
@@ -131,6 +144,7 @@ class VirtualPortfolio:
 
         if symbol in self._positions:
             existing = self._positions[symbol]
+            existing.direction = "long"
             total_qty = existing.quantity + quantity
             total_cost = existing.quantity * existing.entry_price + cost
             existing.quantity = total_qty
@@ -143,6 +157,7 @@ class VirtualPortfolio:
                 entry_price=price,
                 entry_time=now,
                 current_price=price,
+                direction="long",
             )
 
         self._trade_history.append({
@@ -156,7 +171,6 @@ class VirtualPortfolio:
         return True
 
     def sell(self, symbol: str, quantity: float, price: float, timestamp: Optional[datetime] = None) -> Optional[float]:
-        """Execute a virtual sell and return realized PnL."""
         if symbol not in self._positions:
             return None
 
@@ -184,15 +198,85 @@ class VirtualPortfolio:
         })
         return realized_pnl
 
-    def close_position(self, symbol: str, price: float) -> Optional[float]:
-        """Close full position at provided price."""
+    def short_sell(self, symbol: str, quantity: float, price: float, timestamp: Optional[datetime] = None) -> bool:
+        """Open a short position. ``quantity`` is the number of units sold short (positive)."""
+        if quantity <= 0:
+            return False
+        proceeds = quantity * price
+
+        now = timestamp or datetime.now(timezone.utc)
+        self._cash += proceeds
+
+        if symbol in self._positions:
+            existing = self._positions[symbol]
+            existing.direction = "short"
+            total_qty = existing.quantity - quantity
+            total_cost_basis = existing.quantity * existing.entry_price
+            existing.quantity = total_qty
+            existing.entry_price = total_cost_basis / (total_qty + quantity) if total_qty != 0 else price
+            existing.current_price = price
+            if total_qty == 0:
+                del self._positions[symbol]
+        else:
+            self._positions[symbol] = Position(
+                symbol=symbol,
+                quantity=-quantity,
+                entry_price=price,
+                entry_time=now,
+                current_price=price,
+                direction="short",
+            )
+
+        self._trade_history.append({
+            "type": "short_sell",
+            "symbol": symbol,
+            "quantity": quantity,
+            "price": price,
+            "proceeds": proceeds,
+            "timestamp": now.isoformat(),
+        })
+        return True
+
+    def cover_short(self, symbol: str, quantity: float, price: float, timestamp: Optional[datetime] = None) -> Optional[float]:
+        """Cover (buy back) ``quantity`` units of a short position. Returns realized PnL."""
         if symbol not in self._positions:
             return None
-        return self.sell(symbol, self._positions[symbol].quantity, price)
 
-    def snapshot(self) -> PortfolioSnapshot:
-        """Capture and store current portfolio snapshot."""
-        now = datetime.now(timezone.utc)
+        pos = self._positions[symbol]
+        cover_qty = min(quantity, abs(pos.quantity))
+        cost = cover_qty * price
+        proceeds_basis = cover_qty * pos.entry_price
+        realized_pnl = proceeds_basis - cost
+
+        now = timestamp or datetime.now(timezone.utc)
+        self._cash -= cost
+
+        pos.quantity += cover_qty
+        if pos.quantity >= 0:
+            del self._positions[symbol]
+
+        self._trade_history.append({
+            "type": "cover_short",
+            "symbol": symbol,
+            "quantity": cover_qty,
+            "price": price,
+            "cost": cost,
+            "realized_pnl": realized_pnl,
+            "timestamp": now.isoformat(),
+        })
+        return realized_pnl
+
+    def close_position(self, symbol: str, price: float) -> Optional[float]:
+        if symbol not in self._positions:
+            return None
+        pos = self._positions[symbol]
+        qty = abs(pos.quantity)
+        if pos.direction == "long":
+            return self.sell(symbol, qty, price)
+        return self.cover_short(symbol, qty, price)
+
+    def snapshot(self, timestamp: Optional[datetime] = None) -> PortfolioSnapshot:
+        now = timestamp or datetime.now(timezone.utc)
         snap = PortfolioSnapshot(
             timestamp=now,
             total_value=round(self.total_value, 2),
@@ -206,23 +290,21 @@ class VirtualPortfolio:
         return snap
 
     def get_snapshots(self) -> list[PortfolioSnapshot]:
-        """Return recorded snapshots."""
         return list(self._snapshots)
 
     def get_trade_history(self) -> list[dict]:
-        """Return recorded trade history entries."""
         return list(self._trade_history)
 
     def has_position(self, symbol: str) -> bool:
-        """Check if symbol has an open position."""
-        return symbol in self._positions and self._positions[symbol].quantity > 0
+        return symbol in self._positions and self._positions[symbol].quantity != 0
+
+    def is_short(self, symbol: str) -> bool:
+        return symbol in self._positions and self._positions[symbol].quantity < 0
 
     def get_position(self, symbol: str) -> Optional[Position]:
-        """Return open position for symbol if available."""
         return self._positions.get(symbol)
 
     def reset(self) -> None:
-        """Reset portfolio state to initial conditions."""
         self._cash = self._initial_capital
         self._positions.clear()
         self._trade_history.clear()

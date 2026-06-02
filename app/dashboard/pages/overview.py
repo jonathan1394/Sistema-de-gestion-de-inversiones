@@ -2,30 +2,17 @@
 
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
 import streamlit as st
-import yaml
 
 from app.config import load_settings
+from app.dashboard.portfolio_state import get_portfolio_value
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
 
-
-def _get_portfolio_value() -> float:
-    """Compute current portfolio value from Streamlit session state.
-
-    Kept local to avoid importing `app.dashboard.main` (which calls `st.set_page_config`).
-    """
-
-    cash = float(st.session_state.get("portfolio_cash", 0.0))
-    positions = st.session_state.get("portfolio_positions", {})
-    pos_value = 0.0
-    for pos in positions.values():
-        try:
-            pos_value += float(pos.get("quantity", 0.0)) * float(pos.get("current_price", 0.0))
-        except Exception:
-            continue
-    return cash + pos_value
+logger = logging.getLogger(__name__)
 
 
 def _render_market_header(candles_4h: list, candles_1d: list) -> None:
@@ -43,7 +30,7 @@ def _render_market_header(candles_4h: list, candles_1d: list) -> None:
     low_30d = min(c.low for c in candles_1d) if candles_1d else 0
     range_pct = (high_30d - low_30d) / low_30d * 100 if low_30d else 0
     col3.metric("Rango 30d", f"${low_30d:,.0f} - ${high_30d:,.0f}", f"{range_pct:.1f}%", border=True)
-    col4.metric("Valor Cartera", f"${_get_portfolio_value():.2f}", border=True)
+    col4.metric("Valor Cartera", f"${get_portfolio_value():.2f}", border=True)
 
 
 def _render_open_positions() -> None:
@@ -91,51 +78,50 @@ def _render_system_status(config, candles_4h: list) -> None:
         st.text(f"{k}: {v}")
 
 
-def _render_risk_summary() -> None:
+def _render_risk_summary(config) -> None:
     st.subheader("Limites de Riesgo")
-    try:
-        with open("settings.yaml") as f:
-            raw = yaml.safe_load(f) or {}
-        risk = raw.get("risk", {})
-        risk_data = {
-            "Max por trade": f"{risk.get('max_position_size_pct', 0.03)*100:.1f}%",
-            "Riesgo por trade": f"{risk.get('max_risk_per_trade_pct', 0.01)*100:.1f}%",
-            "Stop loss por defecto": f"{risk.get('default_stop_loss_pct', 0.02)*100:.1f}%",
-        }
-    except Exception:
-        risk_data = {"Max por trade": "3.0%", "Riesgo por trade": "1.0%", "Stop loss": "2.0%"}
+    risk_data = {
+        "Max por trade": f"{config.risk.max_position_size_pct * 100:.1f}%",
+        "Riesgo por trade": f"{config.risk.max_risk_per_trade_pct * 100:.1f}%",
+        "Stop loss por defecto": f"{config.risk.default_stop_loss_pct * 100:.1f}%",
+    }
     for k, v in risk_data.items():
         st.text(f"{k}: {v}")
 
 
 def render() -> None:
     """Render high-level market, portfolio, and system overview panels."""
-    st.markdown('<div class="page-title">Dashboard Overview</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-subtitle">Resumen del estado del sistema y cartera.</div>', unsafe_allow_html=True)
+    try:
+        st.markdown('<div class="page-title">Dashboard Overview</div>', unsafe_allow_html=True)
+        st.markdown('<div class="page-subtitle">Resumen del estado del sistema y cartera.</div>', unsafe_allow_html=True)
 
-    config = load_settings()
-    conn = get_connection(config.database.path)
-    candles_4h = get_candles(conn, "BTCUSDT", "4h", limit=100, desc=True)
-    candles_1d = get_candles(conn, "BTCUSDT", "1d", limit=30, desc=True)
+        config = load_settings()
+        conn = get_connection(config.database.path)
+        candles_4h = get_candles(conn, "BTCUSDT", "4h", limit=100, desc=True)
+        candles_1d = get_candles(conn, "BTCUSDT", "1d", limit=30, desc=True)
 
-    _render_market_header(candles_4h, candles_1d)
-    st.divider()
+        _render_market_header(candles_4h, candles_1d)
+        st.divider()
 
-    left, right = st.columns(2)
-    with left:
-        _render_open_positions()
-    with right:
-        _render_market_chart(candles_4h)
+        left, right = st.columns(2)
+        with left:
+            _render_open_positions()
+        with right:
+            _render_market_chart(candles_4h)
 
-    st.divider()
-    col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        _render_system_status(config, candles_4h)
-    with col_b:
-        _render_risk_summary()
-    with col_c:
-        st.subheader("Resumen de Estrategias")
-        st.info("Ejecuta backtests en la seccion Backtesting.")
-        if st.button("Ir a Backtesting", use_container_width=True):
-            st.session_state.page = "Backtesting"
-            st.rerun()
+        st.divider()
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            _render_system_status(config, candles_4h)
+        with col_b:
+            _render_risk_summary(config)
+        with col_c:
+            st.subheader("Resumen de Estrategias")
+            st.info("Ejecuta backtests en la seccion Backtesting.")
+            if st.button("Ir a Backtesting", use_container_width=True):
+                st.session_state.page = "Backtesting"
+                st.rerun()
+    except Exception:
+        logger.exception("Error rendering overview page")
+        st.error("Error loading overview page.")
+        st.stop()

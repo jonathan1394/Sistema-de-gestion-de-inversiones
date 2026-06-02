@@ -8,6 +8,7 @@ const links: Array<{ href: string; label: string }> = [
   { href: "/overview", label: "Overview" },
   { href: "/market", label: "Market" },
   { href: "/prospects", label: "Prospects" },
+  { href: "/ranking", label: "Ranking" },
   { href: "/backtest", label: "Backtest" },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/risk", label: "Risk" },

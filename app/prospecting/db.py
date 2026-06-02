@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import time
 from dataclasses import dataclass
 from typing import Any, Optional
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class Prospect:
@@ -60,7 +62,10 @@ def add_prospect(
         (symbol.upper(), interval, now, notes),
     )
     connection.commit()
-    return get_prospect(connection, symbol, interval)
+    p = get_prospect(connection, symbol, interval)
+    if p is None:
+        raise RuntimeError(f"Failed to retrieve prospect {symbol} after insertion")
+    return p
 
 
 def get_prospect(

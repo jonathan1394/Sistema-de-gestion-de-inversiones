@@ -9,7 +9,7 @@ type Config = {
 type MarketPrice = { symbol: string; interval: string; price: number; ts: number };
 
 export default async function OverviewPage() {
-  const cfg = await apiGet<any>("/config");
+  const cfg = await apiGet<Config>("/config");
   const prices = await apiGet<MarketPrice[]>("/market/summary?symbols=BTCUSDT,ETHUSDT,SOLUSDT&interval=1h");
 
   return (

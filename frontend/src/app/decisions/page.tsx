@@ -1,4 +1,4 @@
-import { Page, SectionTitle, preStyle, thStyle } from "@/app/components/ui";
+import { Page, preStyle, thStyle } from "@/app/components/ui";
 import { apiGet } from "@/lib/api";
 
 import { DecisionsActions } from "./decisions-actions";

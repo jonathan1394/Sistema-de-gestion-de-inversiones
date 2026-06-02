@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
-from typing import Optional
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class ExposureCheckResult:
@@ -37,15 +38,20 @@ def check_exposure(
     max_altcoin_pct: float = 0.40,
     altcoin_symbols: set[str] | None = None,
 ) -> ExposureCheckResult:
-    """Validate asset, total, and optional altcoin exposure limits."""
+    """Validate asset, total, and optional altcoin exposure limits.
+
+    Exposure is based on gross (absolute) position values so that short
+    positions are correctly bounded.
+    """
     if portfolio.total_capital <= 0:
         return ExposureCheckResult(
             approved=False, rejection_reason="Total capital must be positive",
         )
 
-    current_asset_value = portfolio.positions.get(symbol, 0.0)
+    current_asset_value = abs(portfolio.positions.get(symbol, 0.0))
     current_asset_exposure = current_asset_value / portfolio.total_capital
-    current_total_exposure = (portfolio.total_capital - portfolio.cash) / portfolio.total_capital
+    gross_exposure = sum(abs(v) for v in portfolio.positions.values())
+    current_total_exposure = gross_exposure / portfolio.total_capital
 
     proposed_additional = trade_value / portfolio.total_capital
     asset_after = current_asset_exposure + proposed_additional
@@ -109,9 +115,9 @@ def check_exposure(
 
 
 def _calc_altcoin_exposure(portfolio: PortfolioState, altcoin_set: set[str]) -> float:
-    """Return current total altcoin exposure as a capital fraction."""
+    """Return current total altcoin exposure as a capital fraction (gross)."""
     altcoin_value = sum(
-        value for sym, value in portfolio.positions.items()
+        abs(value) for sym, value in portfolio.positions.items()
         if sym in altcoin_set
     )
     return altcoin_value / portfolio.total_capital if portfolio.total_capital > 0 else 0.0

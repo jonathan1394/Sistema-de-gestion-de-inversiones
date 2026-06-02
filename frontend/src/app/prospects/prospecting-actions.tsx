@@ -2,15 +2,11 @@
 
 import { useState, useTransition } from "react";
 
-type Props = {
-  apiBase?: string;
-};
-
 function apiBase(): string {
   return process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000/api/v1";
 }
 
-export function ProspectingActions(_: Props) {
+export function ProspectingActions() {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<string | null>(null);

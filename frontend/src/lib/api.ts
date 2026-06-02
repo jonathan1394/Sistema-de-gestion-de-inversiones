@@ -17,6 +17,10 @@ export class ApiError extends Error {
   }
 }
 
+function isApiEnvelope<T>(payload: unknown): payload is ApiEnvelope<T> {
+  return typeof payload === "object" && payload !== null && "status" in payload;
+}
+
 function apiBase(): string {
   // In dev, we call the Python API directly.
   // In prod, you can set NEXT_PUBLIC_API_BASE or use Next rewrites.
@@ -47,9 +51,8 @@ export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(`HTTP ${res.status}`, res.status, payload);
   }
 
-  const env = payload as ApiEnvelope<T>;
-  if (!env || typeof env !== "object" || (env as any).status !== "ok") {
+  if (!isApiEnvelope<T>(payload) || payload.status !== "ok") {
     throw new ApiError("Unexpected API response", res.status, payload);
   }
-  return env.data;
+  return payload.data;
 }

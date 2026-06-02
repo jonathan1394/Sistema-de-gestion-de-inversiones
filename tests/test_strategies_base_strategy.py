@@ -1,7 +1,6 @@
 """Tests for app/strategies/base_strategy.py."""
 
 import pandas as pd
-import numpy as np
 
 from app.strategies.base_strategy import BaseStrategy, Signal, StrategyResult
 

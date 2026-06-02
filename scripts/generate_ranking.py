@@ -4,12 +4,16 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from typing import List
 
 from app.config import load_settings
 from app.database.connection import get_connection
+from app.logging_setup import setup_logging
 from app.prospecting.db import get_all_prospects
-from app.prospecting.ranking import generate_ranking, AssetRanking
+from app.prospecting.ranking import AssetRanking, generate_ranking
+
+logger = logging.getLogger(__name__)
 
 
 def main() -> None:
@@ -34,6 +38,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    setup_logging()
+
     symbols = [s.strip().upper() for s in args.symbols.split(",")]
     settings = load_settings()
 
@@ -43,7 +49,7 @@ def main() -> None:
         # Filter to only the symbols we're interested in
         prospects = [p for p in prospects if p.symbol in symbols]
         if not prospects:
-            print(f"No prospects found for symbols: {symbols}")
+            logger.info("No prospects found for symbols: %s", symbols)
             return
 
         # Generate ranking

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -14,6 +15,9 @@ from app.backtesting.comparator import (
 from app.config import load_settings
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
+from app.logging_setup import setup_logging
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -86,6 +90,7 @@ def load_data(
 def main() -> None:
     args = parse_args()
     config = load_settings(args.settings)
+    setup_logging()
     conn = get_connection(config.database.path)
 
     symbols = [s.strip().upper() for s in args.symbols.split(",")]
@@ -93,22 +98,22 @@ def main() -> None:
 
     data_by_asset: dict[str, dict[str, pd.DataFrame]] = {}
 
-    print(f"Loading data for {len(symbols)} symbols x {len(intervals)} timeframes...")
+    logger.info("Loading data for %d symbols x %d timeframes...", len(symbols), len(intervals))
     for symbol in symbols:
         data_by_asset[symbol] = {}
         for interval in intervals:
             df = load_data(conn, symbol, interval, limit=args.limit)
             if df is not None:
                 data_by_asset[symbol][interval] = df
-                print(f"  {symbol} {interval}: {len(df)} candles")
+                logger.info("  %s %s: %d candles", symbol, interval, len(df))
             else:
-                print(f"  {symbol} {interval}: insufficient data (skipped)")
+                logger.info("  %s %s: insufficient data (skipped)", symbol, interval)
 
     if not any(data_by_asset.values()):
-        print("No data available. Download historical data first.")
+        logger.error("No data available. Download historical data first.")
         return
 
-    print(f"\nRunning {len(DEFAULT_STRATEGIES)} strategies across all assets...")
+    logger.info("Running %d strategies across all assets...", len(DEFAULT_STRATEGIES))
     ranking = compare_across_assets(
         data_by_asset=data_by_asset,
         initial_capital=args.capital,
@@ -156,13 +161,13 @@ def main() -> None:
                 f,
                 indent=2,
             )
-        print(f"\nRanking exported to {args.export_json}")
+        logger.info("Ranking exported to %s", args.export_json)
 
     if args.export_csv:
         args.export_csv.parent.mkdir(parents=True, exist_ok=True)
         df = ranking.to_dataframe()
         df.to_csv(args.export_csv, index=False)
-        print(f"Ranking exported to {args.export_csv}")
+        logger.info("Ranking exported to %s", args.export_csv)
 
 
 if __name__ == "__main__":

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
 
 from app.strategies.base_strategy import BaseStrategy, Signal, StrategyResult
 from app.strategies.rsi_strategy import compute_rsi
 
+logger = logging.getLogger(__name__)
 
 class TrendFollowing(BaseStrategy):
     """Buy when price is above long EMA, EMAs are bullish, RSI is in range, and volume is elevated."""
@@ -26,65 +29,63 @@ class TrendFollowing(BaseStrategy):
         df["volume_ratio"] = df["volume"] / df["volume_ma"].replace(0, float("nan"))
         return df
 
-    @staticmethod
-    def _row_complete(row: pd.Series) -> bool:
-        return not pd.isna(row["ema_long"]) and not pd.isna(row["ema_fast"]) and not pd.isna(row["rsi"]) and not pd.isna(row["volume_ratio"])
-
-    def _buy_conditions_met(self, row: pd.Series) -> bool:
-        rsi_min = self.parameters.get("rsi_min", 40)
-        rsi_max = self.parameters.get("rsi_max", 70)
-        volume_min = self.parameters.get("volume_min", 1.0)
-        trend_up = row["close"] > row["ema_long"]
-        ema_bullish = row["ema_fast"] > row["ema_slow"]
-        rsi_ok = rsi_min <= row["rsi"] <= rsi_max
-        volume_ok = row["volume_ratio"] > volume_min
-        return trend_up and ema_bullish and rsi_ok and volume_ok
-
-    @staticmethod
-    def _trend_broken(row: pd.Series) -> bool:
-        return row["close"] <= row["ema_long"]
-
     def generate_signals(self, data: pd.DataFrame) -> StrategyResult:
         """Generate BUY when trend conditions align, SELL when trend breaks."""
         symbol = self.parameters.get("symbol", "UNKNOWN")
+        rsi_min = self.parameters.get("rsi_min", 40)
+        rsi_max = self.parameters.get("rsi_max", 70)
+        volume_min = self.parameters.get("volume_min", 1.0)
+        ema_long = self.parameters.get("ema_long", 200)
+        self.min_required_bars = int(self.parameters.get("min_required_bars", ema_long + 1))
+        not_enough = self._check_min_bars(data)
+        if not_enough is not None:
+            return not_enough
+        confidence = float(self.parameters.get("confidence", 0.65))
+        risk_score = float(self.parameters.get("risk_score", 0.35))
+
         df = self._build_features(data)
 
+        trend_up = df["close"] > df["ema_long"]
+        ema_bullish = df["ema_fast"] > df["ema_slow"]
+        rsi_ok = df["rsi"].between(rsi_min, rsi_max)
+        volume_ok = df["volume_ratio"] > volume_min
+        all_ok = trend_up & ema_bullish & rsi_ok & volume_ok
+
+        ready = all_ok & all_ok.notna()
+        trend_broken = (df["close"] <= df["ema_long"]) & df["ema_long"].notna()
+
+        entry = ready & ~ready.shift(1).fillna(False)
+        exit_ = trend_broken & ~trend_broken.shift(1).fillna(False)
+
+        net_position = (entry.cumsum() - exit_.cumsum()).clip(0, 1)
+        prev_position = net_position.shift(1).fillna(0)
+
+        buy_idx = df.index[entry & (prev_position == 0)]
+        sell_idx = df.index[exit_ & (prev_position == 1)]
+
         signals: list[Signal] = []
-        in_position = False
-
-        for idx, row in df.iterrows():
-            if not self._row_complete(row):
-                continue
-            timestamp = idx if isinstance(idx, pd.Timestamp) else pd.Timestamp(row.get("timestamp", idx))
-            price = row["close"]
-
-            if self._buy_conditions_met(row) and not in_position:
-                signals.append(
-                    Signal(
-                        symbol=symbol,
-                        timestamp=timestamp,
-                        action="BUY",
-                        price=price,
-                        reason="Trend up, EMAs bullish, RSI in range, volume above avg",
-                        confidence=0.65,
-                        risk_score=0.35,
-                    )
-                )
-                in_position = True
-                continue
-
-            if self._trend_broken(row) and in_position:
-                signals.append(
-                    Signal(
-                        symbol=symbol,
-                        timestamp=timestamp,
-                        action="SELL",
-                        price=price,
-                        reason="Price closed below long-term EMA (trend broken)",
-                        confidence=0.7,
-                        risk_score=0.3,
-                    )
-                )
-                in_position = False
+        for idx in buy_idx:
+            price = df.loc[idx, "close"]
+            signals.append(Signal(
+                symbol=symbol,
+                timestamp=pd.Timestamp(idx),
+                price=price,
+                action="BUY",
+                reason="Trend up, EMAs bullish, RSI in range, volume above avg",
+                confidence=confidence,
+                risk_score=risk_score,
+                stop_loss=price * (1 - self.stop_loss_pct),
+                take_profit=price * (1 + self.take_profit_pct),
+            ))
+        for idx in sell_idx:
+            signals.append(Signal(
+                symbol=symbol,
+                timestamp=pd.Timestamp(idx),
+                price=df.loc[idx, "close"],
+                action="SELL",
+                reason="Price closed below long-term EMA (trend broken)",
+                confidence=confidence,
+                risk_score=risk_score,
+            ))
 
         return StrategyResult(signals=signals)

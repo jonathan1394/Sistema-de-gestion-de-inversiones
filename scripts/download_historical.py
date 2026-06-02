@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import argparse
+import logging
 
 from app.config import load_settings
 from app.data.binance_client import BinanceClient
 from app.data.market_data import download_and_store, download_and_store_paginated
 from app.database.connection import get_connection
 from app.database.migrations import run_migrations
+from app.logging_setup import setup_logging
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -38,6 +42,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     config = load_settings(args.settings)
+    setup_logging()
 
     if config.mode not in {"analysis", "backtest", "paper"}:
         raise RuntimeError(f"Unsafe mode for downloader: {config.mode}")
@@ -68,11 +73,11 @@ def main() -> None:
             limit=min(args.limit, 1000),
         )
 
-    print(f"Downloaded {result.rows_downloaded} rows for {result.symbol} {result.interval}")
+    logger.info("Downloaded %d rows for %s %s", result.rows_downloaded, result.symbol, result.interval)
     if result.validation_errors:
-        print("Validation warnings:")
+        logger.warning("Validation warnings:")
         for warning in result.validation_errors:
-            print(f"- {warning}")
+            logger.warning("- %s", warning)
 
 
 if __name__ == "__main__":

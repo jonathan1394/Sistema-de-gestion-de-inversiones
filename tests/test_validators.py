@@ -1,9 +1,8 @@
-from pathlib import Path
 
 from quality.validators.code_validator import CodeValidator
+from quality.validators.doc_validator import DocValidator
 from quality.validators.security_validator import SecurityValidator
 from quality.validators.test_validator import TestValidator
-from quality.validators.doc_validator import DocValidator
 
 
 class TestCodeValidator:
@@ -17,6 +16,16 @@ class TestCodeValidator:
         validator = CodeValidator(sample_rules, str(project_root))
         result = validator.validate_imports()
         assert result.passed
+
+    def test_validate_all_includes_unused_imports(self, sample_rules, tmp_path):
+        source = tmp_path / "module.py"
+        source.write_text("import os\n\ndef test_func():\n    return 1\n", encoding="utf-8")
+
+        validator = CodeValidator(sample_rules, str(tmp_path))
+        result = validator.validate_all()
+
+        assert result.passed
+        assert any("Possible unused import 'os'" in w for w in result.warnings)
 
 
 class TestSecurityValidator:
@@ -45,6 +54,29 @@ class TestTestValidator:
         validator = TestValidator(sample_rules, str(tmp_path))
         result = validator.validate_test_existence()
         assert result.passed
+        assert result.warnings
+
+    def test_missing_required_tests_fail(self, sample_rules, tmp_path):
+        tests_dir = tmp_path / "tests"
+        tests_dir.mkdir()
+        (tests_dir / "test_risk_position_sizing.py").write_text(
+            "def test_existing():\n    assert True\n",
+            encoding="utf-8",
+        )
+
+        validator = TestValidator(sample_rules, str(tmp_path))
+        result = validator.validate_test_existence()
+
+        assert not result.passed
+        assert result.errors
+        assert "backtesting/engine.py" in result.errors[0]
+
+    def test_required_tests_allow_non_app_prefix_names(self, sample_rules, project_root):
+        validator = TestValidator(sample_rules, str(project_root))
+        result = validator.validate_test_existence()
+
+        assert result.passed
+        assert not result.errors
 
     def test_test_quality_no_test_files(self, project_root, sample_rules, tmp_path):
         validator = TestValidator(sample_rules, str(tmp_path))

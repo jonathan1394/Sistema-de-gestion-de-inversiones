@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import pandas as pd
@@ -10,8 +11,15 @@ from fastapi import APIRouter, Body, HTTPException, Request
 from app.backtesting import BacktestEngine, compute_metrics
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
-from app.strategies import DCADynamic, MovingAverageCrossover, RSIStrategy, RebalanceStrategy, TrendFollowing
+from app.strategies import (
+    DCADynamic,
+    MovingAverageCrossover,
+    RebalanceStrategy,
+    RSIStrategy,
+    TrendFollowing,
+)
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/backtest", tags=["backtest"])
 

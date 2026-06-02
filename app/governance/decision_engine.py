@@ -6,20 +6,20 @@ considering kill switch, mode, risk limits, and logs the decision.
 
 from __future__ import annotations
 
-import time
+import logging
 from dataclasses import dataclass
 from typing import Optional
 
 from app.config import load_settings
-from app.data.binance_client import BinanceClient
-from app.database.connection import get_connection
 from app.data.market_data import get_candles
+from app.database.connection import get_connection
 from app.governance.decision_log import log_decision
 from app.prospecting.market_decision import analyze_timeframe, compute_confluence
 from app.prospecting.scoring import get_recommendation
-from app.risk.risk_manager import RiskManager, TradeProposal
 from app.risk.exposure_limits import PortfolioState
+from app.risk.risk_manager import RiskManager, TradeProposal
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class InvestmentDecision:
@@ -97,6 +97,7 @@ def evaluate_investment_decision(
         if result is not None:
             tf_results.append(result)
     confluence = compute_confluence(tf_results)
+    recommendation_cfg = settings.prospecting.get("recommendation", {})
 
     # 1. Check if trading is allowed at all (kill switch, mode)
     allowed, blocking_rule = _is_trading_allowed(settings)
@@ -105,11 +106,11 @@ def evaluate_investment_decision(
         recommendation_obj = get_recommendation(
             score=score,
             confluence=confluence,
-            invertir_threshold=settings.prospecting.get("recommendation", {}).get("invertir_threshold", 0.75),
-            vigilat_threshold=settings.prospecting.get("recommendation", {}).get("vigilar_threshold", 0.60),
-            neutral_threshold=settings.prospecting.get("recommendation", {}).get("neutral_threshold", 0.40),
-            min_confluence_invertir=settings.prospecting.get("recommendation", {}).get("min_confluence_for_invertir", 2),
-            min_confluence_vigilat=settings.prospecting.get("recommendation", {}).get("min_confluence_for_vigilar", 1),
+            invertir_threshold=recommendation_cfg.get("invertir_threshold", 0.75),
+            vigilat_threshold=recommendation_cfg.get("vigilar_threshold", 0.60),
+            neutral_threshold=recommendation_cfg.get("neutral_threshold", 0.40),
+            min_confluence_invertir=recommendation_cfg.get("min_confluence_for_invertir", 2),
+            min_confluence_vigilat=recommendation_cfg.get("min_confluence_for_vigilar", 1),
         )
         current_price = _get_current_price(conn, symbol) or 0.0
         quantity = suggested_amount_usdt / current_price if current_price > 0 else 0.0
@@ -130,11 +131,11 @@ def evaluate_investment_decision(
     recommendation_obj = get_recommendation(
         score=score,
         confluence=confluence,
-        invertir_threshold=settings.prospecting.recommendation.invertir_threshold,
-        vigilat_threshold=settings.prospecting.recommendation.vigilar_threshold,
-        neutral_threshold=settings.prospecting.recommendation.neutral_threshold,
-        min_confluence_invertir=settings.prospecting.recommendation.min_confluence_for_invertir,
-        min_confluence_vigilat=settings.prospecting.recommendation.min_confluence_for_vigilar,
+        invertir_threshold=recommendation_cfg.get("invertir_threshold", 0.75),
+        vigilat_threshold=recommendation_cfg.get("vigilar_threshold", 0.60),
+        neutral_threshold=recommendation_cfg.get("neutral_threshold", 0.40),
+        min_confluence_invertir=recommendation_cfg.get("min_confluence_for_invertir", 2),
+        min_confluence_vigilat=recommendation_cfg.get("min_confluence_for_vigilar", 1),
     )
 
     # 3. If not INVERTIR, we do not proceed to risk check; just log and return.
@@ -155,8 +156,8 @@ def evaluate_investment_decision(
         )
 
     # 4. For INVERTIR, we attempt to create a paper buy proposal and run risk checks.
-    current_price = _get_current_price(conn, symbol)
-    if current_price is None or current_price <= 0:
+    current_price = _get_current_price(conn, symbol) or 0.0
+    if current_price <= 0:
         return InvestmentDecision(
             approved=False,
             recommendation=recommendation_obj.label,
@@ -175,11 +176,10 @@ def evaluate_investment_decision(
     # Build a minimal portfolio state for risk checks (we could improve this).
     # For now, we assume no existing positions and full capital available.
     portfolio_state = PortfolioState(
-        total_value=settings.capital.initial_usdt,
+        total_capital=settings.capital.initial_usdt,
         cash=settings.capital.initial_usdt,
         positions={},
-        exposure_pct=0.0,
-        altcoin_exposure_pct=0.0,
+        asset_classes={},
     )
 
     # Build trade proposal: we assume direction BUY.
@@ -198,7 +198,7 @@ def evaluate_investment_decision(
         max_risk_per_trade_pct=settings.risk.max_risk_per_trade_pct,
         default_stop_loss_pct=settings.risk.default_stop_loss_pct,
         max_asset_pct=settings.risk.max_asset_exposure_pct,
-        max_total_pct=1.0,  # we will use max_total_pct from risk? Actually settings.risk has max_total_pct? Not present.
+        max_total_pct=settings.risk.max_total_exposure_pct,
         max_altcoin_pct=settings.risk.max_altcoin_exposure_pct,
         require_stop_loss=settings.risk.require_stop_loss,
         altcoin_symbols=set(settings.risk.altcoin_symbols),
@@ -208,7 +208,7 @@ def evaluate_investment_decision(
     risk_decision = risk_manager.evaluate(proposal=proposal, portfolio=portfolio_state)
 
     # Log the decision regardless of outcome.
-    decision_id = log_decision(
+    log_decision(
         decision_type="PAPER_BUY_EVALUATION",
         symbol=symbol,
         strategy_name="prospecting",
@@ -231,6 +231,7 @@ def evaluate_investment_decision(
         },
         policy_version=settings.policy.version if hasattr(settings, "policy") else None,
         strategy_version="1.0",  # placeholder
+        settings=settings,
     )
 
     if risk_decision.approved:

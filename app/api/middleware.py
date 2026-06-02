@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
+import logging
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+logger = logging.getLogger(__name__)
 
 def install_middleware(app: FastAPI) -> None:
     # In dev, Next.js will typically proxy via rewrites.

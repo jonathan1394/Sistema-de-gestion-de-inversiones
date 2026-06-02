@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -108,6 +111,20 @@ class CircuitBreakers:
             return CircuitBreakerResult(
                 trading_allowed=False,
                 reason=f"Max trades per day ({self._max_trades_per_day}) reached",
+                state=self._state,
+            )
+
+        if self._state.daily_loss_pct >= self._max_daily_loss:
+            return CircuitBreakerResult(
+                trading_allowed=False,
+                reason=f"Daily loss {self._state.daily_loss_pct:.2%} exceeds max ({self._max_daily_loss:.2%})",
+                state=self._state,
+            )
+
+        if self._state.weekly_loss_pct >= self._max_weekly_loss:
+            return CircuitBreakerResult(
+                trading_allowed=False,
+                reason=f"Weekly loss {self._state.weekly_loss_pct:.2%} exceeds max ({self._max_weekly_loss:.2%})",
                 state=self._state,
             )
 

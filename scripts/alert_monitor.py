@@ -1,37 +1,36 @@
 from __future__ import annotations
 
 import argparse
+import logging
+import sqlite3
 import time
 from datetime import datetime, timezone
-from pathlib import Path
-import sqlite3
 
 import pandas as pd
-import yaml
 
 from app.alerts import (
+    HISTORY_FILE,
     Alert,
     AlertEngine,
     AlertRule,
-    AlertManager,
     build_alert_manager,
     price_alert_rule,
-    signal_alert_rule,
     risk_alert_rule,
-    HISTORY_FILE,
+    signal_alert_rule,
 )
 from app.config import load_settings
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
+from app.logging_setup import setup_logging
 from app.strategies.base_strategy import Signal
 from app.strategies.moving_average import MovingAverageCrossover
+
+logger = logging.getLogger(__name__)
 
 
 def _load_alerts_config() -> dict:
     try:
-        with open("settings.yaml") as f:
-            raw = yaml.safe_load(f) or {}
-        return raw.get("alerts", {})
+        return load_settings().alerts
     except Exception:
         return {}
 
@@ -45,7 +44,7 @@ def _get_current_drawdown(conn: sqlite3.Connection) -> float:
     if not latest_row:
         return 0.0
     latest_value = float(latest_row[0])
-    
+
     # Get maximum total_value (peak)
     peak_row = conn.execute(
         "SELECT MAX(total_value) FROM paper_snapshots"
@@ -53,7 +52,7 @@ def _get_current_drawdown(conn: sqlite3.Connection) -> float:
     if not peak_row:
         return 0.0
     peak_value = float(peak_row[0])
-    
+
     if peak_value == 0:
         return 0.0
     drawdown = (peak_value - latest_value) / peak_value * 100.0
@@ -103,7 +102,7 @@ def _daily_summary_rule(config: dict) -> AlertRule:
 def cmd_monitor(args: argparse.Namespace) -> None:
     alerts_config = _load_alerts_config()
     if not alerts_config.get("enabled", True):
-        print("Alerts disabled in settings.yaml")
+        logger.info("Alerts disabled in configuration")
         return
 
     manager = build_alert_manager(alerts_config)
@@ -135,26 +134,26 @@ def cmd_monitor(args: argparse.Namespace) -> None:
 
     engine.add_rule(_daily_summary_rule(alerts_config))
 
-    print(f"Alert monitor started. Checking every {interval}s. Symbols: {symbols}")
-    print(f"History: {HISTORY_FILE}")
-    print("Press Ctrl+C to stop.\n")
+    logger.info("Alert monitor started. Checking every %ds. Symbols: %s", interval, symbols)
+    logger.info("History: %s", HISTORY_FILE)
+    logger.info("Press Ctrl+C to stop.")
 
     try:
         while True:
             triggered = engine.tick()
             if triggered:
                 for alert in triggered:
-                    print(f"  Triggered: [{alert.category}] {alert.title}")
+                    logger.info("  Triggered: [%s] %s", alert.category, alert.title)
             time.sleep(interval)
     except KeyboardInterrupt:
-        print("\nMonitor stopped.")
+        logger.info("Monitor stopped.")
 
 
 def cmd_history(args: argparse.Namespace) -> None:
     manager = build_alert_manager()
     entries = manager.get_history(limit=args.limit)
     if not entries:
-        print("No alerts in history.")
+        logger.info("No alerts in history.")
         return
     print(f"{'Timestamp':<22} {'Level':<8} {'Category':<10} Title")
     print("-" * 80)
@@ -165,10 +164,11 @@ def cmd_history(args: argparse.Namespace) -> None:
 def cmd_clear(args: argparse.Namespace) -> None:
     manager = build_alert_manager()
     manager.clear_history()
-    print("Alert history cleared.")
+    logger.info("Alert history cleared.")
 
 
 def main() -> None:
+    setup_logging()
     parser = argparse.ArgumentParser(description="CriptoLab Alert Monitor")
 
     sub = parser.add_subparsers(dest="command", required=True)

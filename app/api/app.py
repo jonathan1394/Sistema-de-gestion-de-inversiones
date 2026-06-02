@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from typing import Any
@@ -14,6 +15,8 @@ from app.api.routes import market as market_routes
 from app.api.routes import portfolio as portfolio_routes
 from app.api.routes import system as system_routes
 from app.config import load_settings
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -40,6 +43,7 @@ def create_app() -> FastAPI:
     from app.api.routes import decisions as decisions_routes
     from app.api.routes import prospecting as prospecting_routes
     from app.api.routes import risk as risk_routes
+
 
     app.include_router(risk_routes.router, prefix=api_prefix)
     app.include_router(backtest_routes.router, prefix=api_prefix)

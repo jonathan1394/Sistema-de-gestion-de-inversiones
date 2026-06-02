@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import time
 from pathlib import Path
 
@@ -10,17 +11,20 @@ import pandas as pd
 from app.config import load_settings
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
+from app.logging_setup import setup_logging
 from app.paper_trading.simulator import PaperTradingSimulator
 from app.risk.circuit_breakers import CircuitBreakers
 from app.risk.risk_manager import RiskManager
 from app.strategies import (
     DCADynamic,
     MovingAverageCrossover,
-    RSIStrategy,
     RebalanceStrategy,
+    RSIStrategy,
     TrendFollowing,
 )
 from app.strategies.base_strategy import Signal
+
+logger = logging.getLogger(__name__)
 
 BAR_PROGRESS_EVERY = 500
 
@@ -78,12 +82,12 @@ def _run_simulation(
     signal_map: dict[str, Signal],
     symbol: str,
 ) -> float:
-    print(f"\nRunning paper trading simulation on {len(data)} bars...")
+    logger.info("Running paper trading simulation on %d bars...", len(data))
     start_time = time.time()
     for i, (_, row) in enumerate(data.iterrows()):
         ts = row["timestamp"]
         price = float(row["close"])
-        simulator.portfolio.update_prices({symbol: price})
+        simulator.portfolio.update_prices({symbol: price}, timestamp=ts)
 
         signal = signal_map.get(str(ts))
         if signal and signal.action in ("BUY", "SELL"):
@@ -92,9 +96,9 @@ def _run_simulation(
         if (i + 1) % BAR_PROGRESS_EVERY == 0:
             status = simulator.get_status()
             pct = (i + 1) / len(data) * 100
-            print(
-                f"  [{pct:5.1f}%] bar {i+1}/{len(data)} | value: ${status['total_value']:.2f} | "
-                f"trades: {status['trades_executed']} | dd: {status['drawdown_pct']:.1f}%"
+            logger.info(
+                "  [%5.1f%%] bar %d/%d | value: $%.2f | trades: %d | dd: %.1f%%",
+                pct, i + 1, len(data), status['total_value'], status['trades_executed'], status['drawdown_pct'],
             )
 
     return time.time() - start_time
@@ -142,9 +146,10 @@ def _print_snapshot_summary(simulator: PaperTradingSimulator) -> None:
 def main() -> None:
     args = parse_args()
     config = load_settings(args.settings)
+    setup_logging()
     conn = get_connection(config.database.path)
 
-    print(f"Loading {args.symbol} {args.interval} data...")
+    logger.info("Loading %s %s data...", args.symbol, args.interval)
     candles = get_candles(
         connection=conn,
         symbol=args.symbol,
@@ -158,7 +163,7 @@ def main() -> None:
         raise RuntimeError(f"Not enough data ({len(candles)} candles). Download first.")
 
     data = _to_dataframe(candles)
-    print(f"Loaded {len(data)} candles ({data['timestamp'].iloc[0].date()} -> {data['timestamp'].iloc[-1].date()})")
+    logger.info("Loaded %d candles (%s -> %s)", len(data), data['timestamp'].iloc[0].date(), data['timestamp'].iloc[-1].date())
 
     strategy = _build_strategy(args.strategy, args.symbol)
 
@@ -183,7 +188,7 @@ def main() -> None:
 
     signals = strategy.generate_signals(data)
     signal_map = _build_signal_map(signals.signals)
-    print(f"Strategy generated {len(signal_map)} signals")
+    logger.info("Strategy generated %d signals", len(signal_map))
     elapsed = _run_simulation(data, simulator, signal_map, args.symbol)
     _print_results(args, data, simulator, elapsed)
     _maybe_export_trades(args, simulator)

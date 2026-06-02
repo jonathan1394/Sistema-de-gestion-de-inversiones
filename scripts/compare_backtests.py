@@ -3,8 +3,13 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
+
+from app.logging_setup import setup_logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -227,6 +232,7 @@ def export_ranking_csv(ranked: list[RankedSnapshot], output_path: str) -> Path:
 
 def main() -> None:
     args = parse_args()
+    setup_logging()
     files = _resolve_files(args)
 
     all_snapshots = [load_snapshot(path, f"B{i + 1}") for i, path in enumerate(files)]
@@ -239,23 +245,20 @@ def main() -> None:
     if len(snapshots) < 2:
         raise RuntimeError("Not enough backtests after filters. Need at least 2.")
 
-    print("=" * 72)
-    print("BACKTEST COMPARISON")
-    print("=" * 72)
+    logger.info("=" * 72)
+    logger.info("BACKTEST COMPARISON")
+    logger.info("=" * 72)
     for snap in all_snapshots:
-        print(f"{snap.name}: {snap.path}")
-    print("")
+        logger.info("%s: %s", snap.name, snap.path)
 
     if excluded:
-        print("Excluded by filters:")
+        logger.info("Excluded by filters:")
         for snap in excluded:
-            print(
-                f"- {snap.name} (trades={snap.total_trades}, sharpe={snap.sharpe_ratio:.3f})"
+            logger.info(
+                "- %s (trades=%d, sharpe=%.3f)", snap.name, snap.total_trades, snap.sharpe_ratio
             )
-        print("")
 
     print_table(snapshots)
-    print("")
 
     scores = _compute_weighted_scores(
         snapshots=snapshots,
@@ -273,10 +276,10 @@ def main() -> None:
 
     if args.export_json:
         json_path = export_ranking_json(ranked, args.export_json)
-        print(f"\nExported JSON: {json_path}")
+        logger.info("Exported JSON: %s", json_path)
     if args.export_csv:
         csv_path = export_ranking_csv(ranked, args.export_csv)
-        print(f"Exported CSV: {csv_path}")
+        logger.info("Exported CSV: %s", csv_path)
 
 
 if __name__ == "__main__":

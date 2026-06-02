@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import argparse
-import os
+import logging
 
 from app.config import load_settings
 from app.execution import (
     BinanceExecutor,
-    check_mode,
     check_kill_switch,
+    check_mode,
     run_safety_checks,
 )
+from app.logging_setup import setup_logging
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -41,36 +44,30 @@ def format_orders(orders: list) -> str:
     return "\n".join(lines)
 
 
-def _load_api_credentials() -> tuple[str, str]:
-    api_key = os.getenv("BINANCE_API_KEY", "")
-    api_secret = os.getenv("BINANCE_API_SECRET", "")
-    return api_key, api_secret
-
-
 def _warn_missing_credentials(api_key: str, api_secret: str) -> None:
     if api_key and api_secret:
         return
-    print("WARNING: BINANCE_API_KEY and BINANCE_API_SECRET not set in .env")
-    print("Set them in secrets.example.env and copy to .env")
+    logger.warning("BINANCE_API_KEY and BINANCE_API_SECRET not set in .env")
+    logger.warning("Set them in secrets.example.env and copy to .env")
 
 
 def _run_check_only(config, executor) -> bool:
-    print("Running safety checks...")
+    logger.info("Running safety checks...")
     result = run_safety_checks(config, executor)
     if result.safe:
-        print("✅ All safety checks passed")
+        logger.info("All safety checks passed")
     else:
-        print(f"❌ Safety check failed: {result.reason}")
+        logger.error("Safety check failed: %s", result.reason)
     for warning in result.warnings:
-        print(f"  ⚠️  {warning}")
+        logger.warning(warning)
     return True
 
 
 def _preflight(config, api_key: str) -> tuple[bool, str]:
     mode_result = check_mode(config)
     kill_result = check_kill_switch(config)
-    print(f"Mode: {config.mode} {'✅' if mode_result.safe else '❌'}")
-    print(f"Kill Switch: {'⚠️ ACTIVE' if config.kill_switch else '✅ Inactive'}")
+    logger.info("Mode: %s", config.mode)
+    logger.info("Kill Switch: %s", "ACTIVE" if config.kill_switch else "Inactive")
 
     if not api_key:
         return False, "\nNo API key configured. Read-only mode not available."
@@ -83,16 +80,16 @@ def _preflight(config, api_key: str) -> tuple[bool, str]:
 
 def _check_connectivity_and_permissions(executor) -> tuple[bool, str]:
     if not executor.check_connectivity():
-        return False, "❌ Cannot connect to Binance API"
-    print("✅ Connected to Binance API")
+        return False, "Cannot connect to Binance API"
+    logger.info("Connected to Binance API")
 
     perms = executor.validate_permissions()
-    print(f"\nAPI Permissions: {'✅' if perms.valid else '❌'}")
-    print(f"  Trade: {'✅' if perms.can_trade else '❌'}")
-    print(f"  Withdraw: {'⚠️' if perms.can_withdraw else '✅'} (should be disabled)")
-    print(f"  Read-only: {'✅' if perms.read_only else '❌'}")
+    logger.info("API Permissions: %s", "valid" if perms.valid else "invalid")
+    logger.info("  Trade: %s", "enabled" if perms.can_trade else "disabled")
+    logger.info("  Withdraw: %s (should be disabled)", "enabled" if perms.can_withdraw_assets else "disabled")
+    logger.info("  Read-only: %s", "yes" if perms.read_only else "no")
 
-    if perms.can_withdraw:
+    if perms.can_withdraw_assets:
         return False, "\n⚠️  CRITICAL: Withdrawal permission enabled! Disable immediately."
     return True, ""
 
@@ -127,8 +124,10 @@ def _run_action(args: argparse.Namespace, executor) -> None:
 def main() -> None:
     args = parse_args()
     config = load_settings(args.settings)
+    setup_logging()
 
-    api_key, api_secret = _load_api_credentials()
+    api_key = config.binance_api_key
+    api_secret = config.binance_api_secret
     _warn_missing_credentials(api_key, api_secret)
 
     executor = BinanceExecutor(config, api_key, api_secret)

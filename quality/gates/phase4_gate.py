@@ -1,4 +1,3 @@
-from typing import Any
 from .base_gate import BaseGate, GateResult
 
 

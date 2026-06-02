@@ -2,22 +2,27 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
-from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 # Ensure the app module can be found when running via streamlit
 PROJECT_ROOT = Path(__file__).parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import streamlit as st
+from app.logging_setup import setup_logging  # noqa: E402
 
-from app.config import load_settings
-from app.dashboard.portfolio_state import add_snapshot, get_portfolio_value, update_portfolio_prices
-from app.data.market_data import get_candles
-from app.database.connection import get_connection
+setup_logging()
 
+import streamlit as st  # noqa: E402
+
+from app.config import load_settings  # noqa: E402
+from app.dashboard.portfolio_state import get_portfolio_value, update_portfolio_prices  # noqa: E402
+from app.data.market_data import get_candles  # noqa: E402
+from app.database.connection import get_connection  # noqa: E402
 
 THEME_CSS = """
         <style>
@@ -194,15 +199,16 @@ if "page" not in st.session_state:
 if "portfolio_initialized" not in st.session_state:
     st.session_state.portfolio_initialized = False
 if "portfolio_capital" not in st.session_state:
-    st.session_state.portfolio_capital = 1000.0
+    ini = load_settings().capital.initial_usdt
+    st.session_state.portfolio_capital = ini
 if "portfolio_cash" not in st.session_state:
-    st.session_state.portfolio_cash = 1000.0
+    st.session_state.portfolio_cash = st.session_state.portfolio_capital
 if "portfolio_positions" not in st.session_state:
     st.session_state.portfolio_positions = {}
 if "portfolio_snapshots" not in st.session_state:
     st.session_state.portfolio_snapshots = []
 if "portfolio_peak" not in st.session_state:
-    st.session_state.portfolio_peak = 1000.0
+    st.session_state.portfolio_peak = st.session_state.portfolio_capital
 if "active_signals" not in st.session_state:
     st.session_state.active_signals = []
 
@@ -221,112 +227,165 @@ PAGES = {
     "Ranking": "app.dashboard.pages.ranking",
 }
 
+_PAGE_MODULES: dict[str, object] = {}
+
+
+def _load_page_module(page_name: str) -> object | None:
+    if page_name in _PAGE_MODULES:
+        return _PAGE_MODULES[page_name]
+    try:
+        if page_name == "Overview":
+            from app.dashboard.pages import overview as mod
+        elif page_name == "Market Analysis":
+            from app.dashboard.pages import market_analysis as mod
+        elif page_name == "Asset Detail":
+            from app.dashboard.pages import asset_detail as mod
+        elif page_name == "Prospects":
+            from app.dashboard.pages import prospects as mod
+        elif page_name == "Backtesting":
+            from app.dashboard.pages import backtest as mod
+        elif page_name == "Portfolio":
+            from app.dashboard.pages import portfolio as mod
+        elif page_name == "Journal":
+            from app.dashboard.pages import journal as mod
+        elif page_name == "Risk":
+            from app.dashboard.pages import risk as mod
+        elif page_name == "Alerts":
+            from app.dashboard.pages import alerts as mod
+        elif page_name == "Logs":
+            from app.dashboard.pages import logs as mod
+        elif page_name == "Decision Log":
+            from app.dashboard.pages import decision_log as mod
+        elif page_name == "Ranking":
+            from app.dashboard.pages import ranking as mod
+        else:
+            return None
+        _PAGE_MODULES[page_name] = mod
+        return mod
+    except Exception as exc:
+        st.error(f"Error cargando página '{page_name}': {exc}")
+        logger.exception("Error importing page module %s", page_name)
+        return None
+
 
 def render_overview_indicators() -> None:
     """Render top-level metrics for capital, PnL, market, and risk state."""
-    config = load_settings()
-    conn = get_connection(config.database.path)
+    try:
+        config = load_settings()
+        conn = get_connection(config.database.path)
 
-    candles = get_candles(conn, "BTCUSDT", "4h", limit=5, desc=True)
-    latest_price = candles[-1].close if candles else 0.0
-    update_portfolio_prices({"BTCUSDT": latest_price, "ETHUSDT": latest_price, "SOLUSDT": latest_price})
+        symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+        prices: dict[str, float] = {}
+        for symbol in symbols:
+            symbol_candles = get_candles(conn, symbol, "4h", limit=1, desc=True)
+            prices[symbol] = symbol_candles[-1].close if symbol_candles else 0.0
+        update_portfolio_prices(prices)
 
-    if candles and len(candles) > 1:
-        price_change = (candles[-1].close - candles[0].close) / candles[0].close * 100
-    else:
-        price_change = 0.0
+        candles = get_candles(conn, "BTCUSDT", "4h", limit=5, desc=True)
+        latest_price = candles[-1].close if candles else 0.0
 
-    tv = get_portfolio_value()
-    total_pnl = tv - 1000.0
-    total_pnl_pct = (tv - 1000.0) / 1000.0 * 100
-    if tv > st.session_state.portfolio_peak:
-        st.session_state.portfolio_peak = tv
-    dd = (st.session_state.portfolio_peak - tv) / st.session_state.portfolio_peak * 100 if st.session_state.portfolio_peak > 0 else 0
-    exposure = (tv - st.session_state.portfolio_cash) / tv * 100 if tv > 0 else 0
+        if candles and len(candles) > 1:
+            price_change = (candles[-1].close - candles[0].close) / candles[0].close * 100
+        else:
+            price_change = 0.0
 
-    col1, col2, col3, col4 = st.columns(4)
+        tv = get_portfolio_value()
+        cap = st.session_state.portfolio_capital
+        total_pnl = tv - cap
+        total_pnl_pct = (tv - cap) / cap * 100 if cap > 0 else 0.0
+        if tv > st.session_state.portfolio_peak:
+            st.session_state.portfolio_peak = tv
+        dd = (st.session_state.portfolio_peak - tv) / st.session_state.portfolio_peak * 100 if st.session_state.portfolio_peak > 0 else 0
+        exposure = (tv - st.session_state.portfolio_cash) / tv * 100 if tv > 0 else 0
 
-    with col1:
-        st.metric("Capital", f"${tv:.2f}", border=True)
+        col1, col2, col3, col4 = st.columns(4)
 
-    with col2:
-        st.metric("PnL", f"${total_pnl:.2f}", f"{total_pnl_pct:+.2f}%", border=True)
+        with col1:
+            st.metric("Capital", f"${tv:.2f}", border=True)
 
-    with col3:
-        st.metric("BTC/USDT", f"${latest_price:,.2f}", f"{price_change:+.2f}%", border=True)
+        with col2:
+            st.metric("PnL", f"${total_pnl:.2f}", f"{total_pnl_pct:+.2f}%", border=True)
 
-    with col4:
-        status = "⚠️ ON" if config.kill_switch else "✅ OFF"
-        st.metric("Kill Switch", status, border=True)
+        with col3:
+            st.metric("BTC/USDT", f"${latest_price:,.2f}", f"{price_change:+.2f}%", border=True)
 
-    st.markdown(
-        """
-        <div class="legend-row">
-            <span class="badge badge-neutral">DRAWDOWN</span>
-            <span class="badge badge-neutral">EXPOSURE</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.caption(f"Drawdown: {dd:.2f}%  |  Exposure: {exposure:.1f}%")
+        with col4:
+            status = "⚠️ ON" if config.kill_switch else "✅ OFF"
+            st.metric("Kill Switch", status, border=True)
+
+        st.markdown(
+            """
+            <div class="legend-row">
+                <span class="badge badge-neutral">DRAWDOWN</span>
+                <span class="badge badge-neutral">EXPOSURE</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.caption(f"Drawdown: {dd:.2f}%  |  Exposure: {exposure:.1f}%")
+    except Exception:
+        logger.exception("Error rendering overview indicators")
+        st.error("Error loading overview indicators.")
 
 
 def main() -> None:
     """Render sidebar navigation and selected dashboard page content."""
-    inject_theme()
+    try:
+        inject_theme()
 
-    with st.sidebar:
-        st.title("🧪 CriptoLab")
-        st.caption("Private Crypto Investment System")
-        st.divider()
+        with st.sidebar:
+            st.title("🧪 CriptoLab")
+            st.caption("Private Crypto Investment System")
+            st.divider()
 
-        page_icons = {
-            "Overview": "🏠",
-            "Market Analysis": "📈",
-            "Asset Detail": "🧾",
-            "Prospects": "🎯",
-            "Backtesting": "🔬",
-            "Portfolio": "💼",
-            "Journal": "📓",
-            "Risk": "🛡️",
-            "Alerts": "🔔",
-            "Logs": "📚",
-        }
+            page_icons = {
+                "Overview": "🏠",
+                "Market Analysis": "📈",
+                "Asset Detail": "🧾",
+                "Prospects": "🎯",
+                "Backtesting": "🔬",
+                "Portfolio": "💼",
+                "Journal": "📓",
+                "Risk": "🛡️",
+                "Alerts": "🔔",
+                "Logs": "📚",
+            }
 
-        for page_name in PAGES:
-            if st.button(
-                f"{page_icons.get(page_name, '•')}  {page_name}",
-                use_container_width=True,
-                type="primary" if st.session_state.page == page_name else "secondary",
-            ):
-                st.session_state.page = page_name
+            for page_name in PAGES:
+                if st.button(
+                    f"{page_icons.get(page_name, '•')}  {page_name}",
+                    use_container_width=True,
+                    type="primary" if st.session_state.page == page_name else "secondary",
+                ):
+                    st.session_state.page = page_name
 
-        st.divider()
-        config = load_settings()
-        st.caption(f"Mode: **{config.mode}**")
-        ks = "⚠️ ACTIVE" if config.kill_switch else "✅ Inactive"
-        st.caption(f"Kill Switch: {ks}")
+            st.divider()
+            config = load_settings()
+            st.caption(f"Mode: **{config.mode}**")
+            ks = "⚠️ ACTIVE" if config.kill_switch else "✅ Inactive"
+            st.caption(f"Kill Switch: {ks}")
 
-        tv = get_portfolio_value()
-        st.caption(f"Portfolio: **${tv:.2f}**")
+            tv = get_portfolio_value()
+            st.caption(f"Portfolio: **${tv:.2f}**")
 
-    st.markdown(
-        """
-        <div class="top-strip">
-            <div class="page-title">CriptoLab</div>
-            <div class="page-subtitle">Panel operativo minimalista para mercado, cartera y riesgo.</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        st.markdown(
+            """
+            <div class="top-strip">
+                <div class="page-title">CriptoLab</div>
+                <div class="page-subtitle">Panel operativo minimalista para mercado, cartera y riesgo.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    render_overview_indicators()
+        render_overview_indicators()
 
-    page_module = PAGES.get(st.session_state.page)
-    if page_module:
-        module = __import__(page_module, fromlist=["render"])
-        if hasattr(module, "render"):
-            module.render()
+        page_module = _load_page_module(st.session_state.page)
+        if page_module and hasattr(page_module, "render"):
+            page_module.render()
+    except Exception:
+        logger.exception("Error in main dashboard")
+        st.error("Error loading dashboard.")
 
 
 if __name__ == "__main__":

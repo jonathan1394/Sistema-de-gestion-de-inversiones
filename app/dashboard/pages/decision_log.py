@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import json
-import sqlite3
+import logging
 from datetime import datetime, timezone
-from typing import Any, List, Optional
+from typing import List
 
 import pandas as pd
 import streamlit as st
 
-from app.database.connection import get_connection
 from app.governance.decision_log import DecisionLogEntry, get_recent_decisions
+
+logger = logging.getLogger(__name__)
 
 
 def _read_decisions_from_db(limit: int = 1000) -> List[DecisionLogEntry]:
@@ -21,6 +22,7 @@ def _read_decisions_from_db(limit: int = 1000) -> List[DecisionLogEntry]:
         return get_recent_decisions(limit=limit)
     except Exception as e:
         st.error(f"Error reading decisions from database: {e}")
+        logger.exception("Error reading decisions from DB")
         return []
 
 
@@ -169,3 +171,4 @@ def render() -> None:
                 st.rerun()
             except Exception as e:
                 st.error(f"Error al agregar decisión: {e}")
+                logger.exception("Error adding decision log entry")

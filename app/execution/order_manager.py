@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class OrderRequest:

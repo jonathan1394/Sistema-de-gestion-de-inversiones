@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from dataclasses import dataclass, field
 from typing import Optional
@@ -22,6 +23,7 @@ from app.strategies.moving_average import MovingAverageCrossover
 from app.strategies.rsi_strategy import RSIStrategy
 from app.strategies.trend_following import TrendFollowing
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class ScreenedAsset:

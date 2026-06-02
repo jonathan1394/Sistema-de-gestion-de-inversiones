@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
 
 from app.strategies.base_strategy import BaseStrategy, Signal, StrategyResult
 
+logger = logging.getLogger(__name__)
 
 def compute_rsi(series: pd.Series, period: int = 14) -> pd.Series:
     """Compute Relative Strength Index for a price series."""
@@ -28,46 +31,49 @@ class RSIStrategy(BaseStrategy):
         oversold = self.parameters.get("oversold", 30)
         overbought = self.parameters.get("overbought", 70)
         symbol = self.parameters.get("symbol", "UNKNOWN")
+        confidence = float(self.parameters.get("confidence", 0.5))
+        risk_score = float(self.parameters.get("risk_score", 0.5))
+        self.min_required_bars = int(self.parameters.get("min_required_bars", rsi_period + 1))
+        not_enough = self._check_min_bars(data)
+        if not_enough is not None:
+            return not_enough
 
         df = data.copy()
         df["rsi"] = compute_rsi(df["close"], rsi_period)
         df["prev_rsi"] = df["rsi"].shift(1)
 
+        entry = (df["prev_rsi"] <= oversold) & (df["rsi"] > oversold) & df["rsi"].notna()
+        exit_ = (df["prev_rsi"] >= overbought) & (df["rsi"] < overbought) & df["rsi"].notna()
+
+        net_position = (entry.cumsum() - exit_.cumsum()).clip(0, 1)
+        prev_position = net_position.shift(1).fillna(0)
+
+        buy_idx = df.index[entry & (prev_position == 0)]
+        sell_idx = df.index[exit_ & (prev_position == 1)]
+
         signals: list[Signal] = []
-        in_position = False
-
-        for idx, row in df.iterrows():
-            if pd.isna(row["rsi"]) or pd.isna(row["prev_rsi"]):
-                continue
-
-            timestamp = idx if isinstance(idx, pd.Timestamp) else pd.Timestamp(row.get("timestamp", idx))
-            price = row["close"]
-
-            buy_signal = row["prev_rsi"] <= oversold and row["rsi"] > oversold
-            sell_signal = row["prev_rsi"] >= overbought and row["rsi"] < overbought
-
-            if buy_signal and not in_position:
-                signals.append(Signal(
-                    symbol=symbol,
-                    timestamp=timestamp,
-                    action="BUY",
-                    price=price,
-                    reason=f"RSI crossed above {oversold} (oversold)",
-                    confidence=0.5,
-                    risk_score=0.5,
-                ))
-                in_position = True
-
-            elif sell_signal and in_position:
-                signals.append(Signal(
-                    symbol=symbol,
-                    timestamp=timestamp,
-                    action="SELL",
-                    price=price,
-                    reason=f"RSI crossed below {overbought} (overbought)",
-                    confidence=0.5,
-                    risk_score=0.5,
-                ))
-                in_position = False
+        for idx in buy_idx:
+            price = df.loc[idx, "close"]
+            signals.append(Signal(
+                symbol=symbol,
+                timestamp=pd.Timestamp(idx),
+                price=price,
+                action="BUY",
+                reason=f"RSI crossed above {oversold} (oversold)",
+                confidence=confidence,
+                risk_score=risk_score,
+                stop_loss=price * (1 - self.stop_loss_pct),
+                take_profit=price * (1 + self.take_profit_pct),
+            ))
+        for idx in sell_idx:
+            signals.append(Signal(
+                symbol=symbol,
+                timestamp=pd.Timestamp(idx),
+                price=df.loc[idx, "close"],
+                action="SELL",
+                reason=f"RSI crossed below {overbought} (overbought)",
+                confidence=confidence,
+                risk_score=risk_score,
+            ))
 
         return StrategyResult(signals=signals)

@@ -13,6 +13,8 @@ Usage:
 """
 
 import argparse
+import shutil
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -21,13 +23,18 @@ from typing import Any, Optional
 
 import yaml
 
+from .agent_report import AgentReport
 from .gates import (
-    Phase1Gate, Phase2Gate, Phase3Gate,
-    Phase4Gate, Phase5Gate, Phase6Gate,
+    Phase1Gate,
+    Phase2Gate,
+    Phase3Gate,
+    Phase4Gate,
+    Phase5Gate,
+    Phase6Gate,
 )
 from .gates.base_gate import GateResult
-from .validators import CodeValidator, SecurityValidator, TestValidator, DocValidator
-from .agent_report import AgentReport
+from .validators import CodeValidator, DocValidator, SecurityValidator, TestValidator
+from .validators.code_validator import CodeValidationResult
 
 
 class QualityAgent:
@@ -57,6 +64,7 @@ class QualityAgent:
             return yaml.safe_load(f) or {}
 
     def run_all_gates(self) -> list[GateResult]:
+        fail_fast = bool(self.rules.get("agent", {}).get("fail_fast", False))
         gates = [
             Phase1Gate(self.rules, str(self.project_path)),
             Phase2Gate(self.rules, str(self.project_path)),
@@ -70,6 +78,9 @@ class QualityAgent:
             result = gate.run()
             results.append(result)
             print(result.summary)
+            if fail_fast and not result.passed:
+                print(f"[FAIL FAST] Stopping after failed gate: {result.gate_name}")
+                break
 
         self.results.extend(results)
         return results
@@ -157,16 +168,61 @@ class QualityAgent:
         for w in doc_result.warnings:
             print(f"    WARN:  {w}")
 
+        print("\n--- Running External Tool Validators ---")
+        tool_result = self.run_external_tools()
+        print(f"  Tools: {'PASS' if tool_result.passed else 'FAIL'} "
+              f"({len(tool_result.errors)} errors, {len(tool_result.warnings)} warnings)")
+        for e in tool_result.errors:
+            print(f"    ERROR: {e}")
+        for w in tool_result.warnings:
+            print(f"    WARN:  {w}")
+
         return {
             "code": code_result,
             "security": sec_result,
             "tests": test_result,
             "docs": doc_result,
+            "tools": tool_result,
         }
+
+    def run_external_tools(self) -> CodeValidationResult:
+        """Run configured external code-quality tools when available."""
+        errors: list[str] = []
+        warnings: list[str] = []
+        metrics: dict[str, Any] = {}
+
+        tool_commands = [
+            ("ruff", ["ruff", "check", "app/", "tests/", "quality/"]),
+            ("mypy", ["mypy", "app/"]),
+        ]
+        for tool_name, command in tool_commands:
+            if shutil.which(tool_name) is None:
+                warnings.append(f"{tool_name} not installed; skipped external {tool_name} check")
+                metrics[tool_name] = "missing"
+                continue
+
+            result = subprocess.run(
+                command,
+                cwd=self.project_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            metrics[tool_name] = result.returncode
+            if result.returncode != 0:
+                output = (result.stdout or result.stderr or "").strip()
+                errors.append(f"{tool_name} failed with exit code {result.returncode}: {output}")
+
+        return CodeValidationResult(
+            passed=len(errors) == 0,
+            errors=errors,
+            warnings=warnings,
+            metrics=metrics,
+        )
 
     def check_all(self) -> bool:
         print("=" * 60)
-        print(f"CriptoLab Quality Check")
+        print("CriptoLab Quality Check")
         print(f"Started: {datetime.now(timezone.utc).isoformat()}")
         print(f"Project: {self.project_path}")
         print("=" * 60)

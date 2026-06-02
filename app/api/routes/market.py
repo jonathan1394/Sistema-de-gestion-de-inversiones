@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -9,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
 
-
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/market", tags=["market"])
 
 

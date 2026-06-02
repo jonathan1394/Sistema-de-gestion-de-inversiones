@@ -1,7 +1,7 @@
 from .code_validator import CodeValidator
+from .doc_validator import DocValidator
 from .security_validator import SecurityValidator
 from .test_validator import TestValidator
-from .doc_validator import DocValidator
 
 __all__ = [
     "CodeValidator",
