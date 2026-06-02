@@ -37,6 +37,9 @@ data/
 # Reports
 # Keep the reports structure but ignore generated data
 reports/agent_logs/
+
+# Local runtime logs
+dashboard.log
 reports/
 
 # Config local overrides
