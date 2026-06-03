@@ -829,7 +829,7 @@ Se recomienda mantener este checklist actualizado a medida que se completan las 
 - [x] 1.5.1 Vectorizar estrategias (5 archivos)
 - [x] 1.5.2 Stop loss/take profit configurable
 - [x] 1.5.3 Confidence/risk_score parametrizable
-- [ ] 1.5.4 Chequeo minimum_bars
+- [x] 1.5.4 Chequeo minimum_bars
 - [ ] 1.5.5 Unificar representación porcentajes
 - [ ] 1.6.1 VirtualPortfolio timestamp simulación
 - [ ] 1.6.2 Registrar buys en circuit breakers
