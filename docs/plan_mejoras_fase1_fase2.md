@@ -826,8 +826,8 @@ Se recomienda mantener este checklist actualizado a medida que se completan las 
 - [x] 1.4.4 Implementar fail_fast
 - [x] 1.4.5 TestValidator falle realmente
 - [x] 1.4.6 Integrar ruff + mypy en quality agent
-- [ ] 1.5.1 Vectorizar estrategias (5 archivos)
-- [ ] 1.5.2 Stop loss/take profit configurable
+- [x] 1.5.1 Vectorizar estrategias (5 archivos)
+- [x] 1.5.2 Stop loss/take profit configurable
 - [ ] 1.5.3 Confidence/risk_score parametrizable
 - [ ] 1.5.4 Chequeo minimum_bars
 - [ ] 1.5.5 Unificar representación porcentajes
@@ -836,7 +836,7 @@ Se recomienda mantener este checklist actualizado a medida que se completan las 
 - [ ] 1.6.3 Sincronizar VirtualOrderManager + storage
 - [x] 1.7 Integrar Risk Manager en backtesting
 - [ ] 1.8.1 Eliminar duplicación helpers
-- [ ] 1.8.2 Unificar capital inicial dinámico
+- [x] 1.8.2 Unificar capital inicial dinámico
 - [ ] 1.8.3 Manejo de errores consistente
 
 ### Fase 2

@@ -286,7 +286,8 @@ def render() -> None:
     elif strategy in ("Trend Following", "DCA Dinámico", "Rebalanceo"):
         st.caption(f"Parámetros cargados desde settings.yaml → strategies → {cfg_key}")
 
-    capital = st.number_input("Capital inicial", min_value=100, max_value=100000, value=1000, step=100)
+    default_capital = int(load_settings().capital.initial_usdt)
+    capital = st.number_input("Capital inicial", min_value=100, max_value=100000, value=default_capital, step=100)
 
     if st.button("🚀 Ejecutar Backtest", type="primary", use_container_width=True):
         with st.spinner("Ejecutando backtest..."):
