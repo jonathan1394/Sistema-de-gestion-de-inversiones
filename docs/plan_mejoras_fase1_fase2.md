@@ -832,8 +832,8 @@ Se recomienda mantener este checklist actualizado a medida que se completan las 
 - [x] 1.5.4 Chequeo minimum_bars
 - [x] 1.5.5 Unificar representación porcentajes
 - [x] 1.6.1 VirtualPortfolio timestamp simulación
-- [ ] 1.6.2 Registrar buys en circuit breakers
-- [ ] 1.6.3 Sincronizar VirtualOrderManager + storage
+- [x] 1.6.2 Registrar buys en circuit breakers
+- [x] 1.6.3 Sincronizar VirtualOrderManager + storage
 - [x] 1.7 Integrar Risk Manager en backtesting
 - [x] 1.8.1 Eliminar duplicación helpers
 - [x] 1.8.2 Unificar capital inicial dinámico
