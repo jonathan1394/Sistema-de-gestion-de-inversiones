@@ -95,7 +95,7 @@ def _render_paper_trades_tab(conn) -> None:
             "Qty": f"{t.quantity:.6f}",
             "Price": f"${t.price:.2f}",
             "PnL": f"${t.pnl:+.2f}",
-            "PnL%": f"{t.pnl_pct:+.2f}%",
+            "PnL%": f"{t.pnl_pct * 100:+.2f}%",
         }
         for t in stored_trades
     ]
