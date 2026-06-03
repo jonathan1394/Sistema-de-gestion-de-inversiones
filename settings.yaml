@@ -55,10 +55,14 @@ strategies:
   moving_average_crossover:
     fast_period: 20
     slow_period: 50
+    confidence: 0.6
+    risk_score: 0.4
   rsi_strategy:
     rsi_period: 14
     oversold: 30
     overbought: 70
+    confidence: 0.5
+    risk_score: 0.5
   trend_following:
     ema_long: 200
     ema_fast: 20
@@ -67,6 +71,8 @@ strategies:
     rsi_min: 40
     rsi_max: 70
     volume_min: 1.0
+    confidence: 0.65
+    risk_score: 0.35
   dca_dynamic:
     base_investment: 100
     interval_days: 7
@@ -76,10 +82,14 @@ strategies:
     increase_2: 2.0
     ema_period: 200
     reduce_multiplier: 0.5
+    confidence: 0.5
+    risk_score: 0.5
   rebalance:
     target_pct: 0.5
     rebalance_threshold: 0.05
     rebalance_frequency: 30
+    confidence: 0.6
+    risk_score: 0.4
 
 symbols:
   - BTCUSDT

@@ -43,6 +43,8 @@ class BaseStrategy(ABC):
         self.stop_loss_pct = float(self.parameters.get("stop_loss_pct", 0.02))
         self.take_profit_pct = float(self.parameters.get("take_profit_pct", 0.04))
         self.min_required_bars = int(self.parameters.get("min_required_bars", 0))
+        self.confidence = float(self.parameters.get("confidence", 0.5))
+        self.risk_score = float(self.parameters.get("risk_score", 0.5))
 
     def _check_min_bars(self, data: pd.DataFrame) -> StrategyResult | None:
         if len(data) < self.min_required_bars:

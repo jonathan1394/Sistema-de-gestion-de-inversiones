@@ -40,9 +40,6 @@ class TrendFollowing(BaseStrategy):
         not_enough = self._check_min_bars(data)
         if not_enough is not None:
             return not_enough
-        confidence = float(self.parameters.get("confidence", 0.65))
-        risk_score = float(self.parameters.get("risk_score", 0.35))
-
         df = self._build_features(data)
 
         trend_up = df["close"] > df["ema_long"]
@@ -72,8 +69,8 @@ class TrendFollowing(BaseStrategy):
                 price=price,
                 action="BUY",
                 reason="Trend up, EMAs bullish, RSI in range, volume above avg",
-                confidence=confidence,
-                risk_score=risk_score,
+                confidence=self.confidence,
+                risk_score=self.risk_score,
                 stop_loss=price * (1 - self.stop_loss_pct),
                 take_profit=price * (1 + self.take_profit_pct),
             ))
@@ -84,8 +81,8 @@ class TrendFollowing(BaseStrategy):
                 price=df.loc[idx, "close"],
                 action="SELL",
                 reason="Price closed below long-term EMA (trend broken)",
-                confidence=confidence,
-                risk_score=risk_score,
+                confidence=self.confidence,
+                risk_score=self.risk_score,
             ))
 
         return StrategyResult(signals=signals)

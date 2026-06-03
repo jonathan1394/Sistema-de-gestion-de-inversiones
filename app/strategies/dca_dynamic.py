@@ -23,8 +23,6 @@ class DCADynamic(BaseStrategy):
         ema_period = self.parameters.get("ema_period", 200)
         reduce_multiplier = self.parameters.get("reduce_multiplier", 0.5)
         symbol = self.parameters.get("symbol", "UNKNOWN")
-        confidence = float(self.parameters.get("confidence", 0.5))
-        risk_score = float(self.parameters.get("risk_score", 0.5))
         self.min_required_bars = int(self.parameters.get("min_required_bars", ema_period + 1))
         not_enough = self._check_min_bars(data)
         if not_enough is not None:
@@ -68,8 +66,8 @@ class DCADynamic(BaseStrategy):
                 action="BUY",
                 price=price,
                 reason=f"Periodic DCA buy (drop={drop:.1%}, mult={multiplier:.1f}x)",
-                confidence=confidence,
-                risk_score=risk_score,
+                confidence=self.confidence,
+                risk_score=self.risk_score,
                 position_size_pct=min(position_size_pct, 0.5),
                 stop_loss=price * (1 - self.stop_loss_pct),
                 take_profit=price * (1 + self.take_profit_pct),

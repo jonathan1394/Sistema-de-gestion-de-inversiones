@@ -31,8 +31,6 @@ class RSIStrategy(BaseStrategy):
         oversold = self.parameters.get("oversold", 30)
         overbought = self.parameters.get("overbought", 70)
         symbol = self.parameters.get("symbol", "UNKNOWN")
-        confidence = float(self.parameters.get("confidence", 0.5))
-        risk_score = float(self.parameters.get("risk_score", 0.5))
         self.min_required_bars = int(self.parameters.get("min_required_bars", rsi_period + 1))
         not_enough = self._check_min_bars(data)
         if not_enough is not None:
@@ -60,8 +58,8 @@ class RSIStrategy(BaseStrategy):
                 price=price,
                 action="BUY",
                 reason=f"RSI crossed above {oversold} (oversold)",
-                confidence=confidence,
-                risk_score=risk_score,
+                confidence=self.confidence,
+                risk_score=self.risk_score,
                 stop_loss=price * (1 - self.stop_loss_pct),
                 take_profit=price * (1 + self.take_profit_pct),
             ))
@@ -72,8 +70,8 @@ class RSIStrategy(BaseStrategy):
                 price=df.loc[idx, "close"],
                 action="SELL",
                 reason=f"RSI crossed below {overbought} (overbought)",
-                confidence=confidence,
-                risk_score=risk_score,
+                confidence=self.confidence,
+                risk_score=self.risk_score,
             ))
 
         return StrategyResult(signals=signals)

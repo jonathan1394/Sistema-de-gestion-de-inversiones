@@ -828,7 +828,7 @@ Se recomienda mantener este checklist actualizado a medida que se completan las 
 - [x] 1.4.6 Integrar ruff + mypy en quality agent
 - [x] 1.5.1 Vectorizar estrategias (5 archivos)
 - [x] 1.5.2 Stop loss/take profit configurable
-- [ ] 1.5.3 Confidence/risk_score parametrizable
+- [x] 1.5.3 Confidence/risk_score parametrizable
 - [ ] 1.5.4 Chequeo minimum_bars
 - [ ] 1.5.5 Unificar representación porcentajes
 - [ ] 1.6.1 VirtualPortfolio timestamp simulación

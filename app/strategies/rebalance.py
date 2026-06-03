@@ -19,8 +19,6 @@ class RebalanceStrategy(BaseStrategy):
         rebalance_threshold = self.parameters.get("rebalance_threshold", 0.05)
         rebalance_frequency = self.parameters.get("rebalance_frequency", 30)
         symbol = self.parameters.get("symbol", "UNKNOWN")
-        confidence = float(self.parameters.get("confidence", 0.6))
-        risk_score = float(self.parameters.get("risk_score", 0.4))
         self.min_required_bars = int(self.parameters.get("min_required_bars", 2))
         not_enough = self._check_min_bars(data)
         if not_enough is not None:
@@ -43,8 +41,8 @@ class RebalanceStrategy(BaseStrategy):
                     price=price,
                     action="BUY",
                     reason="Initial position for rebalance strategy",
-                    confidence=confidence,
-                    risk_score=risk_score,
+                    confidence=self.confidence,
+                    risk_score=self.risk_score,
                     position_size_pct=target_pct,
                     stop_loss=price * (1 - self.stop_loss_pct),
                     take_profit=price * (1 + self.take_profit_pct),
@@ -66,8 +64,8 @@ class RebalanceStrategy(BaseStrategy):
                     price=price,
                     action=action,
                     reason=f"Rebalance: weight {current_weight:.1%} vs target {target_pct:.1%}",
-                    confidence=confidence,
-                    risk_score=risk_score,
+                    confidence=self.confidence,
+                    risk_score=self.risk_score,
                     position_size_pct=rebalance_size,
                     stop_loss=price * (1 - self.stop_loss_pct) if action == "BUY" else None,
                     take_profit=price * (1 + self.take_profit_pct) if action == "BUY" else None,

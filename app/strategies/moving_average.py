@@ -18,8 +18,6 @@ class MovingAverageCrossover(BaseStrategy):
         fast_period = self.parameters.get("fast_period", 20)
         slow_period = self.parameters.get("slow_period", 50)
         symbol = self.parameters.get("symbol", "UNKNOWN")
-        confidence = float(self.parameters.get("confidence", 0.6))
-        risk_score = float(self.parameters.get("risk_score", 0.4))
         self.min_required_bars = int(self.parameters.get("min_required_bars", slow_period + 1))
         not_enough = self._check_min_bars(data)
         if not_enough is not None:
@@ -49,8 +47,8 @@ class MovingAverageCrossover(BaseStrategy):
                 price=price,
                 action="BUY",
                 reason=f"EMA{fast_period} crossed above EMA{slow_period}",
-                confidence=confidence,
-                risk_score=risk_score,
+                confidence=self.confidence,
+                risk_score=self.risk_score,
                 stop_loss=price * (1 - self.stop_loss_pct),
                 take_profit=price * (1 + self.take_profit_pct),
             ))
@@ -61,8 +59,8 @@ class MovingAverageCrossover(BaseStrategy):
                 price=df.loc[idx, "close"],
                 action="SELL",
                 reason=f"EMA{fast_period} crossed below EMA{slow_period}",
-                confidence=confidence,
-                risk_score=risk_score,
+                confidence=self.confidence,
+                risk_score=self.risk_score,
             ))
 
         return StrategyResult(signals=signals)
