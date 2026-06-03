@@ -233,71 +233,75 @@ def render() -> None:
         unsafe_allow_html=True,
     )
 
-    config = load_settings()
-    conn = get_connection(config.database.path)
+    try:
+        config = load_settings()
+        conn = get_connection(config.database.path)
 
-    col1, col2, col3 = st.columns(3)
+        col1, col2, col3 = st.columns(3)
 
-    with col1:
-        symbol = st.selectbox("Símbolo", ["BTCUSDT", "ETHUSDT", "SOLUSDT"])
+        with col1:
+            symbol = st.selectbox("Símbolo", ["BTCUSDT", "ETHUSDT", "SOLUSDT"])
 
-    with col2:
-        interval = st.selectbox("Intervalo", ["4h", "1h", "1d"])
+        with col2:
+            interval = st.selectbox("Intervalo", ["4h", "1h", "1d"])
 
-    with col3:
-        strategy = st.selectbox(
-            "Estrategia",
-            ["MA Crossover", "RSI", "Trend Following", "DCA Dinámico", "Rebalanceo"],
-        )
+        with col3:
+            strategy = st.selectbox(
+                "Estrategia",
+                ["MA Crossover", "RSI", "Trend Following", "DCA Dinámico", "Rebalanceo"],
+            )
 
-    strategies_cfg = (config.strategies or {}) if hasattr(config, "strategies") else {}
+        strategies_cfg = (config.strategies or {}) if hasattr(config, "strategies") else {}
 
-    params_override: dict = {}
-    cfg_key = {
-        "MA Crossover": "moving_average_crossover",
-        "RSI": "rsi_strategy",
-        "Trend Following": "trend_following",
-        "DCA Dinámico": "dca_dynamic",
-        "Rebalanceo": "rebalance",
-    }.get(strategy, "")
-    strat_cfg = strategies_cfg.get(cfg_key, {}) if isinstance(strategies_cfg, dict) else {}
+        params_override: dict = {}
+        cfg_key = {
+            "MA Crossover": "moving_average_crossover",
+            "RSI": "rsi_strategy",
+            "Trend Following": "trend_following",
+            "DCA Dinámico": "dca_dynamic",
+            "Rebalanceo": "rebalance",
+        }.get(strategy, "")
+        strat_cfg = strategies_cfg.get(cfg_key, {}) if isinstance(strategies_cfg, dict) else {}
 
-    if strategy == "MA Crossover":
-        col_a, col_b = st.columns(2)
-        with col_a:
-            fast_default = strat_cfg.get("fast_period", 20)
-            fast = st.number_input("Periodo rápido", min_value=5, max_value=100, value=int(fast_default))
-            params_override["fast_period"] = fast
-        with col_b:
-            slow_default = strat_cfg.get("slow_period", 50)
-            slow = st.number_input("Periodo lento", min_value=10, max_value=200, value=int(slow_default))
-            params_override["slow_period"] = slow
-    elif strategy == "RSI":
-        col_a, col_b, col_c = st.columns(3)
-        with col_a:
-            rsi_def = strat_cfg.get("rsi_period", 14)
-            params_override["rsi_period"] = st.number_input("RSI Period", min_value=5, max_value=50, value=int(rsi_def))
-        with col_b:
-            os_def = strat_cfg.get("oversold", 30)
-            params_override["oversold"] = st.number_input("Oversold", min_value=10, max_value=50, value=int(os_def))
-        with col_c:
-            ob_def = strat_cfg.get("overbought", 70)
-            params_override["overbought"] = st.number_input("Overbought", min_value=50, max_value=90, value=int(ob_def))
-    elif strategy in ("Trend Following", "DCA Dinámico", "Rebalanceo"):
-        st.caption(f"Parámetros cargados desde settings.yaml → strategies → {cfg_key}")
+        if strategy == "MA Crossover":
+            col_a, col_b = st.columns(2)
+            with col_a:
+                fast_default = strat_cfg.get("fast_period", 20)
+                fast = st.number_input("Periodo rápido", min_value=5, max_value=100, value=int(fast_default))
+                params_override["fast_period"] = fast
+            with col_b:
+                slow_default = strat_cfg.get("slow_period", 50)
+                slow = st.number_input("Periodo lento", min_value=10, max_value=200, value=int(slow_default))
+                params_override["slow_period"] = slow
+        elif strategy == "RSI":
+            col_a, col_b, col_c = st.columns(3)
+            with col_a:
+                rsi_def = strat_cfg.get("rsi_period", 14)
+                params_override["rsi_period"] = st.number_input("RSI Period", min_value=5, max_value=50, value=int(rsi_def))
+            with col_b:
+                os_def = strat_cfg.get("oversold", 30)
+                params_override["oversold"] = st.number_input("Oversold", min_value=10, max_value=50, value=int(os_def))
+            with col_c:
+                ob_def = strat_cfg.get("overbought", 70)
+                params_override["overbought"] = st.number_input("Overbought", min_value=50, max_value=90, value=int(ob_def))
+        elif strategy in ("Trend Following", "DCA Dinámico", "Rebalanceo"):
+            st.caption(f"Parámetros cargados desde settings.yaml → strategies → {cfg_key}")
 
-    default_capital = int(load_settings().capital.initial_usdt)
-    capital = st.number_input("Capital inicial", min_value=100, max_value=100000, value=default_capital, step=100)
+        default_capital = int(load_settings().capital.initial_usdt)
+        capital = st.number_input("Capital inicial", min_value=100, max_value=100000, value=default_capital, step=100)
 
-    if st.button("🚀 Ejecutar Backtest", type="primary", use_container_width=True):
-        with st.spinner("Ejecutando backtest..."):
-            try:
-                _run_backtest(conn, symbol, interval, strategy, params_override or None, capital)
+        if st.button("🚀 Ejecutar Backtest", type="primary", use_container_width=True):
+            with st.spinner("Ejecutando backtest..."):
+                try:
+                    _run_backtest(conn, symbol, interval, strategy, params_override or None, capital)
 
-            except Exception as e:
-                st.error(f"Error ejecutando backtest: {e}")
-                logger.exception("Error running backtest")
-                import traceback
-                st.code(traceback.format_exc())
+                except Exception as e:
+                    st.error(f"Error ejecutando backtest: {e}")
+                    logger.exception("Error running backtest")
+                    import traceback
+                    st.code(traceback.format_exc())
 
-    render_compare_section(conn, symbol, interval, capital)
+        render_compare_section(conn, symbol, interval, capital)
+    except Exception:
+        logger.exception("Unhandled error in backtest render")
+        st.error("An unexpected error occurred while rendering this page.")

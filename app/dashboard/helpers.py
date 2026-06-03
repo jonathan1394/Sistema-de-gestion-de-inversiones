@@ -51,7 +51,8 @@ def get_portfolio_value(session_state: Any) -> float:
     for pos in positions.values():
         try:
             pos_value += float(pos.get("quantity", 0.0)) * float(pos.get("current_price", 0.0))
-        except Exception:
+        except (TypeError, ValueError):
+            logger.warning("Invalid position data for %s", pos)
             continue
     return cash + pos_value
 
@@ -67,7 +68,8 @@ def update_portfolio_prices(session_state: Any, prices: dict[str, float]) -> Non
         try:
             entry = float(pos.get("entry_price", 0.0))
             qty = float(pos.get("quantity", 0.0))
-        except Exception:
+        except (TypeError, ValueError):
+            logger.warning("Invalid entry data for symbol %s", symbol)
             continue
         pos["unrealized_pnl"] = qty * (price - entry)
         pos["unrealized_pnl_pct"] = (price / entry - 1) * 100 if entry else 0.0
