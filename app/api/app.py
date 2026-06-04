@@ -47,6 +47,13 @@ def create_app() -> FastAPI:
     app.include_router(decisions_routes.router, prefix=api_prefix)
     app.include_router(alerts_routes.router, prefix=api_prefix)
 
+    # Dashboard integration routes
+    from app.api.routes import journal as journal_routes
+    from app.api.routes import system_logs as system_logs_routes
+
+    app.include_router(journal_routes.router, prefix=api_prefix)
+    app.include_router(system_logs_routes.router, prefix=api_prefix)
+
     @app.get("/", include_in_schema=False)
     def root() -> dict[str, Any]:
         return {

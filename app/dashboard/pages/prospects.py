@@ -163,6 +163,102 @@ def _render_manage_form(conn, prospects: list) -> None:
             _manage_selected_prospect(conn, selected, promote, arch, delete)
 
 
+def _render_ranking_table(rankings, prospects) -> None:
+    if not rankings:
+        st.info("No hay datos para mostrar en el ranking.")
+        return
+    rows = []
+    for idx, rank in enumerate(rankings, start=1):
+        prospect = next((p for p in prospects if p.symbol == rank.symbol and p.interval == "1d"), None)
+        rows.append({
+            "Rank": idx,
+            "Symbol": rank.symbol,
+            "Score": f"{rank.score:.2f}",
+            "Recommendation": rank.recommendation,
+            "Reason": rank.reason,
+            "Price": f"${rank.price:,.2f}" if rank.price is not None else "-",
+            "Retorno 1d": f"{rank.return_pct_1d:+.2f}%" if rank.return_pct_1d is not None else "-",
+            "Tendencia 1h": rank.trend_1h or "-",
+            "Tendencia 4h": rank.trend_4h or "-",
+            "Tendencia 1d": rank.trend_1d or "-",
+            "Señales": prospect.signals_count if prospect else 0,
+        })
+    st.dataframe(
+        rows, use_container_width=True, hide_index=True,
+        column_config={
+            "Rank": st.column_config.NumberColumn("Rank", width="small"),
+            "Symbol": st.column_config.TextColumn("Symbol", width="small"),
+            "Score": st.column_config.TextColumn("Score", width="small"),
+            "Recommendation": st.column_config.TextColumn("Recommendation", width="medium"),
+            "Reason": st.column_config.TextColumn("Motivo", width="large"),
+            "Price": st.column_config.TextColumn("Precio", width="small"),
+            "Retorno 1d": st.column_config.TextColumn("Retorno 1d", width="small"),
+            "Tendencia 1h": st.column_config.TextColumn("Tend 1h", width="small"),
+            "Tendencia 4h": st.column_config.TextColumn("Tend 4h", width="small"),
+            "Tendencia 1d": st.column_config.TextColumn("Tend 1d", width="small"),
+            "Señales": st.column_config.NumberColumn("Señales", width="small"),
+        },
+    )
+
+
+def _render_paper_execution(conn, prospects) -> None:
+    st.divider()
+    st.subheader("Ejecutar operación paper")
+    decisions: dict[str, InvestmentDecision] = {}
+    for prospect in prospects:
+        decision = evaluate_investment_decision(
+            symbol=prospect.symbol, interval=prospect.interval,
+            score=prospect.score, suggested_amount_usdt=50.0,
+        )
+        decisions[prospect.symbol] = decision
+
+    executable = [p for p in prospects if decisions.get(p.symbol) and decisions[p.symbol].approved and decisions[p.symbol].action == "PAPER_BUY"]
+    if not executable:
+        st.info("No hay prospectos aprobados para operación paper en este momento.")
+        return
+
+    options = {f"{p.symbol} - Score: {p.score:.2f}": p for p in executable}
+    selected_label = st.selectbox("Selecciona un prospecto para operar", options=list(options.keys()), label_visibility="collapsed")
+    selected = options[selected_label] if selected_label else None
+    if not selected:
+        return
+
+    d = decisions.get(selected.symbol)
+    amount = st.number_input(
+        f"Monto a invertir (USDT) para {selected.symbol}",
+        min_value=0.0, value=d.suggested_amount_usdt if d else 50.0, step=1.0,
+    )
+    if st.button("Ejecutar operación paper", type="primary", use_container_width=True):
+        if amount <= 0:
+            st.error("El monto debe ser mayor que cero.")
+            return
+        updated = evaluate_investment_decision(
+            symbol=selected.symbol, interval=selected.interval,
+            score=selected.score, suggested_amount_usdt=amount,
+        )
+        if not (updated.approved and updated.action == "PAPER_BUY"):
+            st.error(f"Operación rechazada: {updated.reason} (Bloqueo: {updated.blocking_rule})")
+            return
+        try:
+            price = get_current_price(conn, selected.symbol)
+            if not price or price <= 0:
+                st.error("No se pudo obtener el precio actual.")
+                return
+            quantity = amount / price
+            trade = record_trade(
+                connection=conn, symbol=selected.symbol, action="BUY", quantity=quantity,
+                price=price, commission=0.0, pnl=0.0, pnl_pct=0.0,
+                reason=f"Paper trade from prospecting: score {selected.score:.2f}, confluence {updated.confluence}/3",
+                interval=selected.interval,
+            )
+            upsert_position(connection=conn, symbol=selected.symbol, quantity=quantity, entry_price=price, current_price=price, entry_time=trade.created_at)
+            st.success(f"Operación ejecutada: {quantity:.6f} {selected.symbol} a ${price:,.2f} USDT. Trade ID: {trade.id}")
+            st.rerun()
+        except Exception as e:
+            logger.exception("Error executing paper trade")
+            st.error(f"Error: {e}")
+
+
 def render() -> None:
     """Render prospect management, metrics, screener controls, ranking, and paper trade execution."""
     try:
@@ -171,16 +267,11 @@ def render() -> None:
         conn = get_connection(config.database.path)
         run_migrations(conn)
 
-        # Header and controls
         col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
             _render_add_form(conn)
         with col2:
-            status_filter = st.selectbox(
-                "Filter",
-                ["all", "watching", "active", "archived", "rejected"],
-                label_visibility="collapsed",
-            )
+            status_filter = st.selectbox("Filter", ["all", "watching", "active", "archived", "rejected"], label_visibility="collapsed")
         with col3:
             if st.button("Refresh", use_container_width=True):
                 st.rerun()
@@ -188,195 +279,19 @@ def render() -> None:
         st.divider()
         _render_screener_controls()
 
-        # Fetch prospects
-        prospects = (
-            get_all_prospects(conn)
-            if status_filter == "all"
-            else get_prospects_by_status(conn, status_filter)
-        )
+        prospects = get_all_prospects(conn) if status_filter == "all" else get_prospects_by_status(conn, status_filter)
         if not prospects:
             st.info("No prospects yet. Add a symbol above to get started.")
             return
 
-        # Generate ranking
         rankings = generate_ranking(prospects)
-
-        # Metrics and legend
         _render_metrics(prospects)
         _render_legend()
 
-        # Ranking table
         st.subheader("Ranking de Activos")
-        if rankings:
-            ranking_rows = []
-            for idx, rank in enumerate(rankings, start=1):
-                # Format trends
-                trend_1h = rank.trend_1h or "-"
-                trend_4h = rank.trend_4h or "-"
-                trend_1d = rank.trend_1d or "-"
-                # Format price and return
-                price_str = f"${rank.price:,.2f}" if rank.price is not None else "-"
-                return_str = (
-                    f"{rank.return_pct_1d:+.2f}%" if rank.return_pct_1d is not None else "-"
-                )
-                # Signals count from prospect (we don't have it in ranking, so we fetch from prospect)
-                prospect = next(
-                    (p for p in prospects if p.symbol == rank.symbol and p.interval == "1d"), None
-                )
-                signals = prospect.signals_count if prospect else 0
-                ranking_rows.append(
-                    {
-                        "Rank": idx,
-                        "Symbol": rank.symbol,
-                        "Score": f"{rank.score:.2f}",
-                        "Recommendation": rank.recommendation,
-                        "Reason": rank.reason,
-                        "Price": price_str,
-                        "Retorno 1d": return_str,
-                        "Tendencia 1h": trend_1h,
-                        "Tendencia 4h": trend_4h,
-                        "Tendencia 1d": trend_1d,
-                        "Señales": signals,
-                    }
-                )
-            st.dataframe(
-                ranking_rows,
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "Rank": st.column_config.NumberColumn("Rank", width="small"),
-                    "Symbol": st.column_config.TextColumn("Symbol", width="small"),
-                    "Score": st.column_config.TextColumn("Score", width="small"),
-                    "Recommendation": st.column_config.TextColumn("Recommendation", width="medium"),
-                    "Reason": st.column_config.TextColumn("Motivo", width="large"),
-                    "Price": st.column_config.TextColumn("Precio", width="small"),
-                    "Retorno 1d": st.column_config.TextColumn("Retorno 1d", width="small"),
-                    "Tendencia 1h": st.column_config.TextColumn("Tend 1h", width="small"),
-                    "Tendencia 4h": st.column_config.TextColumn("Tend 4h", width="small"),
-                    "Tendencia 1d": st.column_config.TextColumn("Tend 1d", width="small"),
-                    "Señales": st.column_config.NumberColumn("Señales", width="small"),
-                },
-            )
-        else:
-            st.info("No hay datos para mostrar en el ranking.")
+        _render_ranking_table(rankings, prospects)
 
-        # Paper trade execution section
-        st.divider()
-        st.subheader("Ejecutar operación paper")
-
-        # We'll reuse the decision engine to get approved actions for paper trading
-        # Evaluate investment decisions for all prospects (if not already done)
-        # We can reuse the rankings to get the score and symbol, but we need to call evaluate_investment_decision
-        # to get the approved status and suggested amount.
-        # Let's create a decisions dict for the prospects that are in the ranking (which is all prospects)
-        decisions: dict[str, InvestmentDecision] = {}
-        for prospect in prospects:
-            decision = evaluate_investment_decision(
-                symbol=prospect.symbol,
-                interval=prospect.interval,  # kept for compatibility, but confluence computed inside
-                score=prospect.score,
-                suggested_amount_usdt=50.0,  # default, can be overridden by user input later
-            )
-            decisions[prospect.symbol] = decision
-
-        # Filter prospects that are INVERTIR and approved by decision engine
-        executable_prospects = [
-            p
-            for p in prospects
-            if decisions.get(p.symbol)
-            and decisions[p.symbol].approved
-            and decisions[p.symbol].action == "PAPER_BUY"
-        ]
-
-        if not executable_prospects:
-            st.info("No hay prospectos aprobados para operación paper en este momento.")
-        else:
-            # Let user select a prospect
-            prospect_options = {
-                f"{p.symbol} - Score: {p.score:.2f}": p for p in executable_prospects
-            }
-            selected_label = st.selectbox(
-                "Selecciona un prospecto para operar",
-                options=list(prospect_options.keys()),
-                label_visibility="collapsed",
-            )
-            selected_prospect = prospect_options[selected_label] if selected_label else None
-
-            if selected_prospect:
-                # Get the decision for the selected prospect
-                d = decisions.get(selected_prospect.symbol)
-                suggested_amount = d.suggested_amount_usdt if d else 50.0
-
-                # Manual amount input
-                amount_input = st.number_input(
-                    f"Monto a invertir (USDT) para {selected_prospect.symbol}",
-                    min_value=0.0,
-                    value=suggested_amount,
-                    step=1.0,
-                    help="Ingresa el monto en USDT que deseas invertir en esta operación paper.",
-                )
-
-                # Execute button
-                if st.button("Ejecutar operación paper", type="primary", use_container_width=True):
-                    if amount_input <= 0:
-                        st.error("El monto debe ser mayor que cero.")
-                    else:
-                        # Re-evaluate decision with the user-provided amount (to check risk limits)
-                        updated_decision = evaluate_investment_decision(
-                            symbol=selected_prospect.symbol,
-                            interval=selected_prospect.interval,
-                            score=selected_prospect.score,
-                            suggested_amount_usdt=amount_input,
-                        )
-                        if updated_decision.approved and updated_decision.action == "PAPER_BUY":
-                            # Record the trade
-                            try:
-                                # Fetch current price for execution
-                                price = get_current_price(conn, selected_prospect.symbol)
-                                if price is None or price <= 0:
-                                    st.error(
-                                        "No se pudo obtener el precio actual para ejecutar la operación."
-                                    )
-                                else:
-                                    quantity = amount_input / price
-                                    # Record trade
-                                    trade = record_trade(
-                                        connection=conn,
-                                        symbol=selected_prospect.symbol,
-                                        action="BUY",
-                                        quantity=quantity,
-                                        price=price,
-                                        commission=0.0,  # TODO: use settings.fees.trading_fee_pct
-                                        pnl=0.0,  # PNL will be calculated later on close
-                                        pnl_pct=0.0,
-                                        reason=f"Paper trade from prospecting: score {selected_prospect.score:.2f}, confluence {updated_decision.confluence}/3",
-                                        interval=selected_prospect.interval,
-                                    )
-                                    # Update or insert position
-                                    upsert_position(
-                                        connection=conn,
-                                        symbol=selected_prospect.symbol,
-                                        quantity=quantity,
-                                        entry_price=price,
-                                        current_price=price,
-                                        entry_time=trade.created_at,
-                                    )
-                                    st.success(
-                                        f"Operación paper ejecutada: {quantity:.6f} {selected_prospect.symbol} a ${price:,.2f} USDT. "
-                                        f"Trade ID: {trade.id}"
-                                    )
-                                    # Optionally, refresh to update portfolio views
-                                    st.rerun()
-                            except Exception as e:
-                                logger.exception("Error executing paper trade from prospects")
-                                st.error(f"Error al ejecutar la operación paper: {e}")
-                        else:
-                            st.error(
-                                f"Operación rechazada por gestión de riesgo: {updated_decision.reason} "
-                                f"(Bloqueo: {updated_decision.blocking_rule})"
-                            )
-
-        # Manage prospect form (keep existing)
+        _render_paper_execution(conn, prospects)
         _render_manage_form(conn, prospects)
     except Exception:
         logger.exception("Error rendering prospects page")

@@ -90,16 +90,53 @@ class BacktestEngine:
         ).max(axis=1)
         return tr.ewm(span=period, adjust=False).mean()
 
-    def run(self) -> BacktestResult:
-        data = self._prepare_data()
-        signal_map = self._build_signal_map(data)
-
-        needs_atr = (
+    def _setup_atr(self, data: pd.DataFrame) -> None:
+        needs = (
             self._risk_manager is not None
             and self._risk_manager.take_profit_atr_multiplier is not None
         ) or self._trailing_stop_config is not None
-        if needs_atr and "high" in data.columns and "low" in data.columns:
+        if needs and "high" in data.columns and "low" in data.columns:
             self._atr_series = self._compute_atr()
+
+    def _manage_exit(
+        self, timestamp: pd.Timestamp, price: float, sig: Signal | None, pos: dict, cash: float,
+        trailing: TrailingStop | None, row: pd.Series, trades: list, total_fees: float,
+    ) -> tuple[float, dict, TrailingStop | None, float]:
+        self._update_trailing_stop(trailing, row, timestamp)
+        if trailing is not None:
+            pos["stop"] = trailing.current_stop
+        result = self._check_exit(timestamp, price, sig, pos, cash)
+        if result is None:
+            return cash, pos, trailing, total_fees
+        trades.append(result["trade"])
+        return result["cash"], self._empty_position(), None, total_fees + result["fees"]
+
+    def _manage_entry(
+        self, timestamp: pd.Timestamp, price: float, sig: Signal, cash: float,
+        rejected: list,
+    ) -> tuple[dict, float, float, TrailingStop | None] | None:
+        if sig.action != "BUY":
+            return None
+        is_short = sig.direction == "short"
+        atr_val = self._get_atr(timestamp)
+        if self._risk_manager is not None:
+            proposal = TradeProposal(symbol=self.symbol, direction="short" if is_short else "long", entry_price=price, capital=cash, reason=sig.reason, confidence=sig.confidence)
+            portfolio = PortfolioState(total_capital=cash, cash=cash, positions={})
+            decision = self._risk_manager.evaluate(proposal, portfolio, stop_loss_price=sig.stop_loss, atr_value=atr_val)
+            if not decision.approved:
+                rejected.append({"timestamp": str(timestamp), "reason": sig.reason, "rejection": decision.rejection_reason})
+                return None
+            result = self._enter_position_rm(timestamp, price, sig, cash, decision)
+            trailing = self._init_trailing(price, sig, decision, atr_val, is_short)
+        else:
+            result = self._enter_position(timestamp, price, sig, cash)
+            trailing = self._init_trailing_simple(price, sig, is_short)
+        return result, trailing
+
+    def run(self) -> BacktestResult:
+        data = self._prepare_data()
+        signal_map = self._build_signal_map(data)
+        self._setup_atr(data)
 
         cash = self.initial_capital
         pos = self._empty_position()
@@ -115,65 +152,12 @@ class BacktestEngine:
             equity.iloc[data.index.get_loc(timestamp)] = cash + pos["qty"] * price
 
             if pos["qty"] != 0:
-                self._update_trailing_stop(trailing, row, timestamp)
-                if trailing is not None:
-                    pos["stop"] = trailing.current_stop
-                result = self._check_exit(timestamp, price, sig, pos, cash)
-                if result is not None:
-                    trades.append(result["trade"])
-                    cash = result["cash"]
-                    total_fees += result["fees"]
-                    pos = self._empty_position()
-                    trailing = None
+                cash, pos, trailing, total_fees = self._manage_exit(timestamp, price, sig, pos, cash, trailing, row, trades, total_fees)
 
             if sig is not None and pos["qty"] == 0 and cash > 0:
-                if sig.action == "BUY":
-                    is_short = sig.direction == "short"
-                    atr_val = self._get_atr(timestamp)
-                    if self._risk_manager is not None:
-                        proposal = TradeProposal(
-                            symbol=self.symbol,
-                            direction="short" if is_short else "long",
-                            entry_price=price,
-                            capital=cash,
-                            reason=sig.reason,
-                            confidence=sig.confidence,
-                        )
-                        portfolio = PortfolioState(
-                            total_capital=cash,
-                            cash=cash,
-                            positions={},
-                        )
-                        decision = self._risk_manager.evaluate(
-                            proposal,
-                            portfolio,
-                            stop_loss_price=sig.stop_loss,
-                            atr_value=atr_val,
-                        )
-                        if not decision.approved:
-                            rejected_signals.append(
-                                {
-                                    "timestamp": str(timestamp),
-                                    "reason": sig.reason,
-                                    "rejection": decision.rejection_reason,
-                                }
-                            )
-                            continue
-                        result = self._enter_position_rm(timestamp, price, sig, cash, decision)
-                        trailing = self._init_trailing(
-                            price,
-                            sig,
-                            decision,
-                            atr_val,
-                            is_short,
-                        )
-                    else:
-                        result = self._enter_position(timestamp, price, sig, cash)
-                        trailing = self._init_trailing_simple(
-                            price,
-                            sig,
-                            is_short,
-                        )
+                entry = self._manage_entry(timestamp, price, sig, cash, rejected_signals)
+                if entry is not None:
+                    result, trailing = entry
                     trades.append(result["trade"])
                     pos = result["pos"]
                     cash = result["cash"]
@@ -291,6 +275,42 @@ class BacktestEngine:
         atr_val = self._get_atr(timestamp)
         trailing.update(price, high=high, low=low, atr_value=atr_val)
 
+    @staticmethod
+    def _stop_tp_hit(pos: dict, is_short: bool, price: float) -> tuple[bool, bool]:
+        if is_short:
+            stop = pos["stop"] is not None and price >= pos["stop"]
+            tp = pos["tp"] is not None and price <= pos["tp"]
+        else:
+            stop = pos["stop"] is not None and price <= pos["stop"]
+            tp = pos["tp"] is not None and price >= pos["tp"]
+        return stop, tp
+
+    @staticmethod
+    def _exit_pnl(is_short: bool, price: float, qty: float, entry_px: float, commission: float, slippage: float) -> tuple[float, float, float, float]:
+        if is_short:
+            exec_px = price * (1 + slippage)
+            gross = abs(qty) * exec_px
+            fee = gross * commission
+            cost = gross + fee
+            pnl = (abs(qty) * entry_px) - cost
+            net_cash = -cost
+        else:
+            exec_px = price * (1 - slippage)
+            gross = qty * exec_px
+            fee = gross * commission
+            net = gross - fee
+            pnl = net - (qty * entry_px)
+            net_cash = net
+        return exec_px, fee, pnl, net_cash
+
+    @staticmethod
+    def _exit_reason(exit_signal: bool, sig: Signal | None, stop_hit: bool) -> str:
+        if exit_signal and sig is not None:
+            return sig.reason
+        if stop_hit:
+            return "Stop-loss hit"
+        return "Take-profit hit"
+
     def _check_exit(
         self,
         timestamp: pd.Timestamp,
@@ -301,49 +321,17 @@ class BacktestEngine:
     ) -> dict | None:
         pos["hold"] += 1
         is_short = pos.get("direction", "long") == "short"
-
-        if is_short:
-            stop_hit = pos["stop"] is not None and price >= pos["stop"]
-            tp_hit = pos["tp"] is not None and price <= pos["tp"]
-        else:
-            stop_hit = pos["stop"] is not None and price <= pos["stop"]
-            tp_hit = pos["tp"] is not None and price >= pos["tp"]
-
+        stop_hit, tp_hit = self._stop_tp_hit(pos, is_short, price)
         exit_signal = sig is not None and sig.action in ("SELL", "EXIT", "REDUCE")
         if not (exit_signal or stop_hit or tp_hit):
             return None
-
-        if is_short:
-            exec_px = price * (1 + self.slippage_pct)
-            gross = abs(pos["qty"]) * exec_px
-            fee = gross * self.commission_pct
-            cost = gross + fee
-            proceeds_basis = abs(pos["qty"]) * pos["entry_px"]
-            pnl = proceeds_basis - cost
-            entry_notional = abs(pos["qty"]) * pos["entry_px"]
-            net_cash = cash - cost
-        else:
-            exec_px = price * (1 - self.slippage_pct)
-            gross = pos["qty"] * exec_px
-            fee = gross * self.commission_pct
-            net = gross - fee
-            pnl = net - (pos["qty"] * pos["entry_px"])
-            entry_notional = pos["qty"] * pos["entry_px"]
-            net_cash = net
-
-        if exit_signal and sig is not None:
-            reason = sig.reason
-        elif stop_hit:
-            reason = "Stop-loss hit"
-        else:
-            reason = "Take-profit hit"
-
-        side = "SELL" if is_short else "BUY"
-
+        exec_px, fee, pnl, net_cash = self._exit_pnl(is_short, price, pos["qty"], pos["entry_px"], self.commission_pct, self.slippage_pct)
+        reason = self._exit_reason(exit_signal, sig, stop_hit)
+        entry_notional = abs(pos["qty"]) * pos["entry_px"]
         return {
             "trade": TradeRecord(
                 symbol=self.symbol,
-                side=side,
+                side="SELL" if is_short else "BUY",
                 entry_time=pos["entry_time"] or timestamp,
                 exit_time=timestamp,
                 entry_price=pos["entry_px"],
@@ -360,7 +348,7 @@ class BacktestEngine:
                 take_profit=pos["tp"],
                 direction=pos.get("direction", "long"),
             ),
-            "cash": net_cash,
+            "cash": cash + net_cash,
             "fees": fee,
         }
 
@@ -532,23 +520,8 @@ class BacktestEngine:
         ts = data.index[-1]
         px = data.iloc[-1]["close"]
         is_short = pos.get("direction", "long") == "short"
-
-        if is_short:
-            exec_px = px * (1 + self.slippage_pct)
-            gross = abs(pos["qty"]) * exec_px
-            fee = gross * self.commission_pct
-            cost = gross + fee
-            pnl = (abs(pos["qty"]) * pos["entry_px"]) - cost
-        else:
-            exec_px = px * (1 - self.slippage_pct)
-            gross = pos["qty"] * exec_px
-            fee = gross * self.commission_pct
-            net = gross - fee
-            pnl = net - (pos["qty"] * pos["entry_px"])
-            cost = 0.0
-
+        exec_px, fee, pnl, net_cash = self._exit_pnl(is_short, px, pos["qty"], pos["entry_px"], self.commission_pct, self.slippage_pct)
         entry_notional = abs(pos["qty"]) * pos["entry_px"]
-
         return {
             "trade": TradeRecord(
                 symbol=self.symbol,
@@ -569,6 +542,6 @@ class BacktestEngine:
                 take_profit=pos["tp"],
                 direction=pos.get("direction", "long"),
             ),
-            "cash": cash - cost if is_short else net,
+            "cash": cash + net_cash,
             "fees": fee,
         }

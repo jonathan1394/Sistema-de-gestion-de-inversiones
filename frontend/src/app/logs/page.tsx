@@ -1,23 +1,35 @@
-import { Page, SectionTitle, thStyle } from "@/app/components/ui";
+import { Badge, Page, Panel, SectionTitle, thStyle, tdStyle } from "@/app/components/ui";
 import { apiGet } from "@/lib/api";
 import type { DecisionEntry, AlertEntry } from "@/types";
 
+type SystemLogEntry = {
+  timestamp: string;
+  level: string;
+  module: string;
+  message: string;
+};
+
 function formatTimestamp(ts: string): string {
   if (!ts) return "-";
-
   const numericTs = Number(ts);
-  if (Number.isFinite(numericTs)) {
-    return new Date(numericTs).toLocaleString();
-  }
-
+  if (Number.isFinite(numericTs)) return new Date(numericTs).toLocaleString();
   const parsed = new Date(ts);
   return Number.isNaN(parsed.getTime()) ? ts : parsed.toLocaleString();
 }
 
+async function fetchSystemLogs(): Promise<SystemLogEntry[]> {
+  try {
+    return await apiGet<SystemLogEntry[]>("/system/logs?limit=200");
+  } catch {
+    return [];
+  }
+}
+
 export default async function LogsPage() {
-  const [decisions, alerts] = await Promise.all([
+  const [decisions, alerts, systemLogs] = await Promise.all([
     apiGet<DecisionEntry[]>("/decisions?limit=100").catch(() => []),
     apiGet<AlertEntry[]>("/alerts/history?limit=100").catch(() => []),
+    fetchSystemLogs(),
   ]);
 
   const logs: { ts: string; kind: string; level: string; msg: string }[] = [];
@@ -40,10 +52,25 @@ export default async function LogsPage() {
     });
   }
 
+  for (const s of systemLogs) {
+    logs.push({
+      ts: s.timestamp,
+      kind: "system",
+      level: s.level.toLowerCase(),
+      msg: `[${s.module}] ${s.message}`,
+    });
+  }
+
   logs.sort((a, b) => b.ts.localeCompare(a.ts));
 
   return (
-    <Page title="Logs" subtitle={`${logs.length} entries — decisions + alerts`}>
+    <Page title="Logs" subtitle={`${logs.length} entries — decisions + alerts + system logs`}>
+      <section className="stats-grid">
+        <Badge tone="info">{decisions.length} decisions</Badge>
+        <Badge tone="info">{alerts.length} alerts</Badge>
+        <Badge tone="info">{systemLogs.length} system logs</Badge>
+      </section>
+
       <SectionTitle>System activity</SectionTitle>
 
       {logs.length === 0 ? (
@@ -62,7 +89,7 @@ export default async function LogsPage() {
             <tbody>
               {logs.map((entry, i) => {
                 const levelColor =
-                  entry.level === "error" ? "#b91c1c" : entry.level === "warn" ? "#d97706" : "#059669";
+                  entry.level === "error" ? "#b91c1c" : entry.level === "warn" ? "#d97706" : entry.level === "warning" ? "#d97706" : "#059669";
                 return (
                   <tr key={`${entry.kind}-${i}`} style={{ borderTop: "1px solid #eef2f7" }}>
                     <td style={{ padding: 10, color: "#6b7280", whiteSpace: "nowrap", fontSize: 11 }}>

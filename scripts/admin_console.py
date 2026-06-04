@@ -69,22 +69,134 @@ def run_command(cmd: List[str], description: str):
     print("-" * 50)
 
 
+def _prompt(desc: str, default: str = "") -> str:
+    return input(f"{desc} (default: {default}): ").strip() or default
+
+
+def _handle_daily_report() -> None:
+    run_command([sys.executable, "-m", "scripts.daily_report"], "Generando reporte diario")
+
+
+def _handle_alert_monitor() -> None:
+    symbol = _prompt("Símbolo para monitorear", "BTCUSDT")
+    interval = _prompt("Intervalo en segundos", "30")
+    run_command(
+        [sys.executable, "-m", "scripts.alert_monitor", "--symbol", symbol, "--interval", interval],
+        f"Iniciando monitor de alertas para {symbol}",
+    )
+
+
+def _handle_view_decisions() -> None:
+    limit_raw = input("Número de decisiones a mostrar (default: 20): ").strip()
+    limit = int(limit_raw) if limit_raw.isdigit() else 20
+    run_command(
+        [sys.executable, "-m", "scripts.view_decisions", "--limit", str(limit)],
+        "Mostrando registro de decisiones",
+    )
+
+
+def _handle_generate_ranking() -> None:
+    symbols = _prompt("Símbolos (coma-separados)", "BTCUSDT,ETHUSDT,SOLUSDT")
+    interval = _prompt("Intervalo", "1h")
+    limit_raw = input("Límite (default: 10): ").strip()
+    limit = int(limit_raw) if limit_raw.isdigit() else 10
+    run_command(
+        [sys.executable, "-m", "scripts.generate_ranking", "--symbols", symbols, "--interval", interval, "--limit", str(limit)],
+        "Generando ranking de activos",
+    )
+
+
+def _handle_paper_trading() -> None:
+    symbol = _prompt("Símbolo", "BTCUSDT")
+    interval = _prompt("Intervalo", "1h")
+    strategy = _prompt("Estrategia (ma/rsi/trend)", "ma")
+    fast = _prompt("Período rápido", "20")
+    slow = _prompt("Período lento", "50")
+    run_command(
+        [sys.executable, "-m", "scripts.run_paper_trading", "--symbol", symbol, "--interval", interval, "--strategy", strategy, "--fast", fast, "--slow", slow],
+        "Ejecutando paper trading",
+    )
+
+
+def _handle_download() -> None:
+    symbol = _prompt("Símbolo", "BTCUSDT")
+    interval = _prompt("Intervalo", "1h")
+    limit_raw = input("Límite (default: 1000): ").strip()
+    limit = int(limit_raw) if limit_raw.isdigit() else 1000
+    run_command(
+        [sys.executable, "-m", "scripts.download_historical", "--symbol", symbol, "--interval", interval, "--limit", str(limit)],
+        "Descargando datos históricos",
+    )
+
+
+def _handle_prospecting() -> None:
+    symbols = _prompt("Símbolos (coma-separados)", "BTCUSDT,ETHUSDT,SOLUSDT")
+    interval = _prompt("Intervalo", "1d")
+    run_command(
+        [sys.executable, "-m", "scripts.run_prospecting", "--symbols", symbols, "--interval", interval],
+        "Ejecutando prospecting y scoring",
+    )
+
+
+def _handle_compare_backtests() -> None:
+    print("\nArchivos de métricas disponibles en ./reports/backtests/")
+    files_input = input("Archivos JSON (coma-separados, o dejar vacío para ejemplos): ").strip()
+    if files_input:
+        files = [f.strip() for f in files_input.split(",")]
+        run_command([sys.executable, "-m", "scripts.compare_backtests", "--files"] + files, "Comparando backtests")
+    else:
+        print("💡 Ejemplo: python -m scripts.compare_backtests --files ./reports/backtests/btc_1h_ma/metrics.json ./reports/backtests/eth_4h_ma/metrics.json")
+
+
+def _handle_compare_strategies() -> None:
+    symbols = _prompt("Símbolos (coma-separados)", "BTCUSDT,ETHUSDT")
+    intervals = _prompt("Intervalos (coma-separados)", "1h,4h")
+    strategies = _prompt("Estrategias (coma-separados)", "ma,rsi,trend")
+    run_command(
+        [sys.executable, "-m", "scripts.compare_strategies", "--symbols", symbols, "--intervals", intervals, "--strategies", strategies],
+        "Comparando estrategias",
+    )
+
+
+def _handle_quality() -> None:
+    run_command([sys.executable, "-m", "quality.quality_agent", "--check-all"], "Ejecutando quality gate completo")
+
+
+def _handle_tests() -> None:
+    run_command([sys.executable, "-m", "pytest"], "Ejecutando suite de pruebas")
+
+
+def _handle_dashboard() -> None:
+    print("\n🚀 Iniciando Dashboard Streamlit...")
+    print("📍 El dashboard estará disponible en: http://localhost:8501")
+    print("💡 Presiona Ctrl+C para detener el dashboard y volver al menú")
+    try:
+        subprocess.run([sys.executable, "-m", "streamlit", "run", "app/dashboard/main.py"])
+    except KeyboardInterrupt:
+        print("\n👋 Dashboard detenido. Volviendo al menú...")
+
+
+MENU_ITEMS: list[tuple[str, str, callable]] = [
+    ("1", "📊 Generar Reporte Diario", _handle_daily_report),
+    ("2", "🔔 Iniciar Monitor de Alertas", _handle_alert_monitor),
+    ("3", "📋 Ver Registro de Decisiones", _handle_view_decisions),
+    ("4", "📈 Generar Ranking de Activos", _handle_generate_ranking),
+    ("5", "💰 Ejecutar Paper Trading", _handle_paper_trading),
+    ("6", "📥 Descargar Datos Históricos", _handle_download),
+    ("7", "🔍 Ejecutar Prospecting y Scoring", _handle_prospecting),
+    ("8", "⚖️ Comparar Backtests", _handle_compare_backtests),
+    ("9", "🎯 Comparar Estrategias", _handle_compare_strategies),
+    ("10", "🧪 Ejecutar Pruebas de Calidad", _handle_quality),
+    ("11", "🐛 Ejecutar Test Suite", _handle_tests),
+    ("12", "🖥️  Iniciar Dashboard Streamlit", _handle_dashboard),
+]
+
+MENU_MAP: dict[str, callable] = {key: handler for key, _, handler in MENU_ITEMS}
+
+
 def main_menu():
     """Display main menu and handle user selection."""
-    options = {
-        "1": "📊 Generar Reporte Diario",
-        "2": "🔔 Iniciar Monitor de Alertas",
-        "3": "📋 Ver Registro de Decisiones",
-        "4": "📈 Generar Ranking de Activos",
-        "5": "💰 Ejecutar Paper Trading",
-        "6": "📥 Descargar Datos Históricos",
-        "7": "🔍 Ejecutar Prospecting y Scoring",
-        "8": "⚖️ Comparar Backtests",
-        "9": "🎯 Comparar Estrategias",
-        "10": "🧪 Ejecutar Pruebas de Calidad",
-        "11": "🐛 Ejecutar Test Suite",
-        "12": "🖥️  Iniciar Dashboard Streamlit",
-    }
+    options = {key: desc for key, desc, _ in MENU_ITEMS}
 
     while True:
         print_header()
@@ -95,164 +207,10 @@ def main_menu():
         if choice == "0":
             print("👋 ¡Hasta luego!")
             break
-        elif choice == "1":
-            run_command([sys.executable, "-m", "scripts.daily_report"], "Generando reporte diario")
-        elif choice == "2":
-            symbol = input("Símbolo para monitorear (default: BTCUSDT): ").strip() or "BTCUSDT"
-            interval = input("Intervalo en segundos (default: 30): ").strip() or "30"
-            run_command(
-                [
-                    sys.executable,
-                    "-m",
-                    "scripts.alert_monitor",
-                    "--symbol",
-                    symbol,
-                    "--interval",
-                    interval,
-                ],
-                f"Iniciando monitor de alertas para {symbol}",
-            )
-        elif choice == "3":
-            limit_input = input("Número de decisiones a mostrar (default: 20): ").strip()
-            limit = int(limit_input) if limit_input.isdigit() else 20
-            run_command(
-                [sys.executable, "-m", "scripts.view_decisions", "--limit", str(limit)],
-                "Mostrando registro de decisiones",
-            )
-        elif choice == "4":
-            symbols_input = input(
-                "Símbolos (coma-separados, default: BTCUSDT,ETHUSDT,SOLUSDT): "
-            ).strip()
-            symbols = symbols_input or "BTCUSDT,ETHUSDT,SOLUSDT"
-            interval = input("Intervalo (default: 1h): ").strip() or "1h"
-            limit_input = input("Límite (default: 10): ").strip()
-            limit = int(limit_input) if limit_input.isdigit() else 10
-            run_command(
-                [
-                    sys.executable,
-                    "-m",
-                    "scripts.generate_ranking",
-                    "--symbols",
-                    symbols,
-                    "--interval",
-                    interval,
-                    "--limit",
-                    str(limit),
-                ],
-                "Generando ranking de activos",
-            )
-        elif choice == "5":
-            symbol = input("Símbolo (default: BTCUSDT): ").strip() or "BTCUSDT"
-            interval = input("Intervalo (default: 1h): ").strip() or "1h"
-            strategy = input("Estrategia (ma/rsi/trend - default: ma): ").strip() or "ma"
-            fast = input("Período rápido (default: 20): ").strip() or "20"
-            slow = input("Período lento (default: 50): ").strip() or "50"
-            run_command(
-                [
-                    sys.executable,
-                    "-m",
-                    "scripts.run_paper_trading",
-                    "--symbol",
-                    symbol,
-                    "--interval",
-                    interval,
-                    "--strategy",
-                    strategy,
-                    "--fast",
-                    fast,
-                    "--slow",
-                    slow,
-                ],
-                "Ejecutando paper trading",
-            )
-        elif choice == "6":
-            symbol = input("Símbolo (default: BTCUSDT): ").strip() or "BTCUSDT"
-            interval = input("Intervalo (default: 1h): ").strip() or "1h"
-            limit_input = input("Límite (default: 1000): ").strip()
-            limit = int(limit_input) if limit_input.isdigit() else 1000
-            run_command(
-                [
-                    sys.executable,
-                    "-m",
-                    "scripts.download_historical",
-                    "--symbol",
-                    symbol,
-                    "--interval",
-                    interval,
-                    "--limit",
-                    limit,
-                ],
-                "Descargando datos históricos",
-            )
-        elif choice == "7":
-            symbols_input = input(
-                "Símbolos (coma-separados, default: BTCUSDT,ETHUSDT,SOLUSDT): "
-            ).strip()
-            symbols = symbols_input or "BTCUSDT,ETHUSDT,SOLUSDT"
-            interval = input("Intervalo (default: 1d): ").strip() or "1d"
-            run_command(
-                [
-                    sys.executable,
-                    "-m",
-                    "scripts.run_prospecting",
-                    "--symbols",
-                    symbols,
-                    "--interval",
-                    interval,
-                ],
-                "Ejecutando prospecting y scoring",
-            )
-        elif choice == "8":
-            print("\nArchivos de métricas disponibles en ./reports/backtests/")
-            files_input = input(
-                "Archivos JSON (coma-separados, o dejar vacío para ejemplos): "
-            ).strip()
-            if files_input:
-                files = [f.strip() for f in files_input.split(",")]
-                cmd = [sys.executable, "-m", "scripts.compare_backtests", "--files"] + files
-                run_command(cmd, "Comparando backtests")
-            else:
-                print(
-                    "💡 Ejemplo: python -m scripts.compare_backtests --files ./reports/backtests/btc_1h_ma/metrics.json ./reports/backtests/eth_4h_ma/metrics.json"
-                )
-        elif choice == "9":
-            symbols_input = input("Símbolos (coma-separados, default: BTCUSDT,ETHUSDT): ").strip()
-            symbols = symbols_input or "BTCUSDT,ETHUSDT"
-            intervals_input = input("Intervalos (coma-separados, default: 1h,4h): ").strip()
-            intervals = intervals_input or "1h,4h"
-            strategies_input = input(
-                "Estrategias (coma-separados, default: ma,rsi,trend): "
-            ).strip()
-            strategies = strategies_input or "ma,rsi,trend"
-            run_command(
-                [
-                    sys.executable,
-                    "-m",
-                    "scripts.compare_strategies",
-                    "--symbols",
-                    symbols,
-                    "--intervals",
-                    intervals,
-                    "--strategies",
-                    strategies,
-                ],
-                "Comparando estrategias",
-            )
-        elif choice == "10":
-            run_command(
-                [sys.executable, "-m", "quality.quality_agent", "--check-all"],
-                "Ejecutando quality gate completo",
-            )
-        elif choice == "11":
-            run_command([sys.executable, "-m", "pytest"], "Ejecutando suite de pruebas")
-        elif choice == "12":
-            print("\n🚀 Iniciando Dashboard Streamlit...")
-            print("📍 El dashboard estará disponible en: http://localhost:8501")
-            print("💡 Presiona Ctrl+C para detener el dashboard y volver al menú")
-            try:
-                subprocess.run([sys.executable, "-m", "streamlit", "run", "app/dashboard/main.py"])
-            except KeyboardInterrupt:
-                print("\n👋 Dashboard detenido. Volviendo al menú...")
+
+        handler = MENU_MAP.get(choice)
+        if handler:
+            handler()
         else:
             print("❌ Opción no válida. Por favor, selecciona un número del menú.")
 

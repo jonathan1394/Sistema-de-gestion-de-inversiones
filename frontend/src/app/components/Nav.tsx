@@ -7,13 +7,16 @@ const links: Array<{ href: string; label: string }> = [
   { href: "/", label: "Home" },
   { href: "/overview", label: "Overview" },
   { href: "/market", label: "Market" },
+  { href: "/market-analysis", label: "Analysis" },
   { href: "/prospects", label: "Prospects" },
   { href: "/ranking", label: "Ranking" },
   { href: "/backtest", label: "Backtest" },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/risk", label: "Risk" },
+  { href: "/journal", label: "Journal" },
   { href: "/alerts", label: "Alerts" },
   { href: "/decisions", label: "Decisions" },
+  { href: "/logs", label: "Logs" },
 ];
 
 export function Nav() {

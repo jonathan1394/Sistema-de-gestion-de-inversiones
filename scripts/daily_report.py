@@ -59,7 +59,6 @@ def _get_portfolio_summary(conn) -> Dict[str, Any]:
         market_value = pos.quantity * latest_price
         cost_basis = pos.quantity * pos.entry_price
         pnl = market_value - cost_basis
-        pnl_pct = (pnl / cost_basis * 100) if cost_basis > 0 else 0.0
 
         total_value += market_value
         total_cost += cost_basis
@@ -327,88 +326,108 @@ def _save_report_to_files(
     return {"json": str(json_path), "markdown": str(md_path), "filename_base": filename_base}
 
 
-def _generate_markdown_report(report: Dict[str, Any]) -> str:
-    """Generate a human-readable Markdown report."""
-    md = f"""# Reporte Diario de CriptoLab
+def _md_header(report: Dict[str, Any]) -> str:
+    s = report["summary"]
+    return f"""# Reporte Diario de CriptoLab
 **Fecha:** {report["report_date"]}
 **Hora:** {report["report_time_utc"]}
 
 ## Resumen Ejecutivo
-- **Activos analizados:** {report["summary"]["total_assets_analyzed"]}
-- **Modo de trading:** {"Paper Trading" if report["summary"]["paper_trading_enabled"] else "Solo Análisis"}
-- **Kill Switch:** {"Activado" if report["summary"]["kill_switch_active"] else "Desactivado"}
-- **Régimen de mercado:** {report["summary"]["market_regime"]}
-
-## Rankings de Activos (Top 10)
-| Rank | Símbolo | Recomendación | Score | Confluencia | Precio (USDT) | Retorno 1d |
-|------|---------|---------------|-------|-------------|---------------|------------|
+- **Activos analizados:** {s["total_assets_analyzed"]}
+- **Modo de trading:** {"Paper Trading" if s["paper_trading_enabled"] else "Solo Análisis"}
+- **Kill Switch:** {"Activado" if s["kill_switch_active"] else "Desactivado"}
+- **Régimen de mercado:** {s["market_regime"]}
 """
 
+
+def _md_rankings(report: Dict[str, Any]) -> str:
+    md = "## Rankings de Activos (Top 10)\n"
+    md += "| Rank | Símbolo | Recomendación | Score | Confluencia | Precio (USDT) | Retorno 1d |\n"
+    md += "|------|---------|---------------|-------|-------------|---------------|------------|\n"
     for rank in report["rankings"][:10]:
         md += f"| {rank['rank']} | {rank['symbol']} | {rank['recommendation']} | {rank['score']:.2f} | {rank['confluence']}/3 | "
         md += f"{rank['price']:,.2f} | {rank['return_1d']:+.2f}% |\n"
+    return md + "\n"
 
-    md += "\n## Estado de la Carta Paper\n"
-    portfolio = report["portfolio"]
-    md += f"""- **Valor total:** ${portfolio["total_value"]:,.2f}
-- **Efectivo disponible:** ${portfolio["cash"]:,.2f}
-- **Costo total:** ${portfolio["total_cost"]:,.2f}
-- **PnL total:** ${portfolio["total_pnl"]:,.2f} ({portfolio["total_pnl_pct"]:+.2f}%)
-- **Posiciones activas:** {portfolio["positions_count"]}
-- **Operaciones recientes:** {portfolio["recent_trades_count"]}
 
-### Posiciones Actuales
-"""
-
-    if portfolio["positions"]:
+def _md_portfolio(report: Dict[str, Any]) -> str:
+    pf = report["portfolio"]
+    md = "## Estado de la Carta Paper\n"
+    md += f"- **Valor total:** ${pf['total_value']:,.2f}\n"
+    md += f"- **Efectivo disponible:** ${pf['cash']:,.2f}\n"
+    md += f"- **Costo total:** ${pf['total_cost']:,.2f}\n"
+    md += f"- **PnL total:** ${pf['total_pnl']:,.2f} ({pf['total_pnl_pct']:+.2f}%)\n"
+    md += f"- **Posiciones activas:** {pf['positions_count']}\n"
+    md += f"- **Operaciones recientes:** {pf['recent_trades_count']}\n\n"
+    md += "### Posiciones Actuales\n"
+    if pf["positions"]:
         md += "| Símbolo | Cantidad | Precio Entrada | Precio Actual | PnL No Realizado | PnL % |\n"
-        md += (
-            "|---------|----------|----------------|---------------|------------------|--------|\n"
-        )
-        for pos in portfolio["positions"]:
+        md += "|---------|----------|----------------|---------------|------------------|--------|\n"
+        for pos in pf["positions"]:
             md += f"| {pos['symbol']} | {pos['quantity']:.6f} | ${pos['entry_price']:,.2f} | ${pos['current_price']:,.2f} | ${pos['unrealized_pnl']:,.2f} | {pos['unrealized_pnl_pct']:+.2f}% |\n"
     else:
         md += "*No hay posiciones activas*\n"
+    return md + "\n"
 
-    md += "\n## Análisis de Mercado\n"
-    for symbol, analysis in report["market_analysis"].items():
+
+def _md_market_analysis(report: Dict[str, Any]) -> str:
+    md = "## Análisis de Mercado\n"
+    for symbol, a in report["market_analysis"].items():
         md += f"### {symbol}\n"
-        md += f"- **Precio:** ${analysis['price']:,.2f} ({analysis['return_pct']:+.2f}%)\n"
-        md += f"- **Confluencia:** {analysis['confluence']}/3\n"
-        md += f"- **Tendencia:** 1h={analysis['trend_1h'] or '-'}, 4h={analysis['trend_4h'] or '-'}, 1d={analysis['trend_1d'] or '-'}\n"
-        md += f"- **RSI:** {analysis['rsi'] or '-'}\n"
-        md += f"- **Volatilidad:** {analysis['volatility'] or '-'}\n"
-        md += f"- **Volumen:** {analysis['volume'] or '-'}\n"
-        if analysis.get("key_levels"):
-            kl = analysis["key_levels"]
+        md += f"- **Precio:** ${a['price']:,.2f} ({a['return_pct']:+.2f}%)\n"
+        md += f"- **Confluencia:** {a['confluence']}/3\n"
+        md += f"- **Tendencia:** 1h={a['trend_1h'] or '-'}, 4h={a['trend_4h'] or '-'}, 1d={a['trend_1d'] or '-'}\n"
+        md += f"- **RSI:** {a['rsi'] or '-'}\n"
+        md += f"- **Volatilidad:** {a['volatility'] or '-'}\n"
+        md += f"- **Volumen:** {a['volume'] or '-'}\n"
+        if a.get("key_levels"):
+            kl = a["key_levels"]
             md += f"- **Niveles clave:** Soporte ${kl.get('support', 0):,.2f}, Resistencia ${kl.get('resistance', 0):,.2f}\n"
         md += "\n"
+    return md
 
-    md += "## Señales Activas\n"
+
+def _md_signals(report: Dict[str, Any]) -> str:
+    md = "## Señales Activas\n"
     if report["active_signals"]:
-        for signal in report["active_signals"][:5]:  # Top 5
+        for signal in report["active_signals"][:5]:
             md += f"- **{signal['symbol']}:** Score {signal['score']:.2f}, "
-            md += f"Tendencia {signal['trend'] or '-'}, "
-            md += f"RSI {signal['rsi'] or '-'}\n"
+            md += f"Tendencia {signal['trend'] or '-'}, RSI {signal['rsi'] or '-'}\n"
     else:
         md += "*No hay señales activas*\n"
+    return md + "\n"
 
-    md += "\n## Decisiones Recientes\n"
+
+def _md_decisions(report: Dict[str, Any]) -> str:
+    md = "## Decisiones Recientes\n"
     if report["recent_decisions"]:
-        for decision in report["recent_decisions"][:5]:  # Last 5
-            status = "✅ APROBADA" if decision["approved"] else "❌ RECHAZADA"
-            md += f"- **{decision['datetime']}** {decision['symbol']} "
-            md += f"({decision['type']}): {status} - {decision['reason']}\n"
+        for d in report["recent_decisions"][:5]:
+            status = "✅ APROBADA" if d["approved"] else "❌ RECHAZADA"
+            md += f"- **{d['datetime']}** {d['symbol']} ({d['type']}): {status} - {d['reason']}\n"
     else:
         md += "*No hay decisiones recientes*\n"
+    return md + "\n"
 
-    md += "\n## Sugerencias de Acción\n"
-    for suggestion in report["action_suggestions"]:
-        md += f"- {suggestion}\n"
 
-    md += "\n---\n*Reporte generado automáticamente por CriptoLab*\n"
-
+def _md_suggestions(report: Dict[str, Any]) -> str:
+    md = "## Sugerencias de Acción\n"
+    for s in report["action_suggestions"]:
+        md += f"- {s}\n"
     return md
+
+
+def _generate_markdown_report(report: Dict[str, Any]) -> str:
+    parts = [
+        _md_header(report),
+        _md_rankings(report),
+        _md_portfolio(report),
+        _md_market_analysis(report),
+        _md_signals(report),
+        _md_decisions(report),
+        _md_suggestions(report),
+        "\n---\n*Reporte generado automáticamente por CriptoLab*\n",
+    ]
+    return "\n".join(parts)
 
 
 def main():

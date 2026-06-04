@@ -132,6 +132,9 @@ def _render_backtest_comparison(conn, symbol: str) -> None:
                 return
             data = candles_to_dataframe(candles)
             bt_result = compare_strategies(data=data, symbol=symbol, interval="4h")
+            if not bt_result.strategy_results:
+                st.warning("All strategies failed to produce valid results.")
+                return
             rows = [
                 {
                     "Strategy": sr.strategy_name,

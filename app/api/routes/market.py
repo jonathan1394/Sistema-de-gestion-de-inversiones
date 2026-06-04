@@ -4,12 +4,28 @@ from __future__ import annotations
 
 from typing import Any
 
+import pandas as pd
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from app.ai.market_summary import generate_market_summary
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
+from app.prospecting.market_decision import compute_confluence
 
 router = APIRouter(prefix="/market", tags=["market"])
+
+
+def _candles_to_dataframe(candles: list) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
+            "open": [c.open for c in candles],
+            "high": [c.high for c in candles],
+            "low": [c.low for c in candles],
+            "close": [c.close for c in candles],
+            "volume": [c.volume for c in candles],
+        }
+    )
 
 
 @router.get("/candles/{symbol}/{interval}")
@@ -98,3 +114,51 @@ def summary(
             }
         )
     return {"status": "ok", "data": out, "error": None, "meta": {"count": len(out)}}
+
+
+@router.get("/analysis/{symbol}")
+def market_analysis(
+    request: Request,
+    symbol: str,
+    intervals: str = Query(default="1h,4h,1d"),
+) -> dict[str, Any]:
+    """Multi-timeframe market analysis with confluence score."""
+    s = request.app.state.settings
+    conn = get_connection(s.database.path)
+    tf_list = [i.strip() for i in intervals.split(",") if i.strip()]
+
+    tf_results = []
+    for interval in tf_list:
+        candles = get_candles(conn, symbol=symbol, interval=interval, limit=200, desc=True)
+        if not candles or len(candles) < 50:
+            continue
+        df = _candles_to_dataframe(candles)
+        try:
+            summary = generate_market_summary(df, symbol=symbol, period=interval)
+        except (ValueError, KeyError):
+            continue
+        tf_results.append({
+            "interval": interval,
+            "price": summary.close_price,
+            "return_pct": summary.return_pct,
+            "trend": summary.condition.trend,
+            "volatility": summary.condition.volatility,
+            "rsi": summary.condition.rsi_condition,
+            "volume": summary.condition.volume_profile,
+            "summary_text": summary.condition.summary,
+            "key_levels": summary.key_levels,
+            "volatility_pct": summary.volatility_pct,
+        })
+
+    confluence = compute_confluence(tf_results)
+    return {
+        "status": "ok",
+        "data": {
+            "symbol": symbol.upper(),
+            "timeframes": tf_results,
+            "confluence": confluence,
+            "total_timeframes": len(tf_results),
+        },
+        "error": None,
+        "meta": {},
+    }

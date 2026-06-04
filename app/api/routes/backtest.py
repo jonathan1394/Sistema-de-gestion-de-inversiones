@@ -8,6 +8,7 @@ import pandas as pd
 from fastapi import APIRouter, Body, HTTPException, Request
 
 from app.backtesting import BacktestEngine, compute_metrics
+from app.backtesting.comparator import compare_strategies
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
 from app.strategies import (
@@ -133,6 +134,62 @@ def run_backtest(request: Request, payload: dict[str, Any] = Body(...)) -> dict[
             "metrics": metrics.__dict__,
             "trades": trades,
             "equity_curve": equity,
+        },
+        "error": None,
+        "meta": {},
+    }
+
+
+@router.post("/compare")
+def compare_backtests(request: Request, payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Run all strategies on the same data and return comparative results."""
+    s = request.app.state.settings
+    symbol = str(payload.get("symbol", "BTCUSDT")).upper()
+    interval = str(payload.get("interval", "4h"))
+    capital = float(payload.get("capital", s.capital.initial_usdt))
+    limit = int(payload.get("limit", 500))
+
+    conn = get_connection(s.database.path)
+    candles = get_candles(connection=conn, symbol=symbol, interval=interval, limit=limit)
+    if len(candles) < 50:
+        raise HTTPException(status_code=400, detail=f"Insufficient candles: {len(candles)}")
+
+    data = _candles_to_dataframe(candles)
+    result = compare_strategies(
+        data=data, symbol=symbol, interval=interval, initial_capital=capital,
+        commission_pct=s.backtesting.default_commission_pct,
+        slippage_pct=s.backtesting.default_slippage_pct,
+    )
+
+    strategies_data = []
+    for sr in result.strategy_results:
+        m = sr.metrics
+        strategies_data.append({
+            "strategy_name": sr.strategy_name,
+            "parameters": sr.parameters,
+            "passed_validation": sr.passed_validation,
+            "metrics": {
+                "total_trades": m.total_trades,
+                "win_rate": round(m.win_rate, 1),
+                "profit_factor": round(m.profit_factor, 2),
+                "sharpe_ratio": round(m.sharpe_ratio, 2),
+                "sortino_ratio": round(m.sortino_ratio, 2),
+                "max_drawdown_pct": round(m.max_drawdown_pct, 2),
+                "roi_pct": round(m.roi_pct, 2),
+                "final_capital": round(m.final_capital, 2),
+                "cagr_pct": round(m.cagr_pct, 2),
+                "payoff_ratio": round(m.payoff_ratio, 2),
+            },
+        })
+
+    return {
+        "status": "ok",
+        "data": {
+            "symbol": symbol,
+            "interval": interval,
+            "initial_capital": capital,
+            "best_strategy": result.best.strategy_name if result.best else None,
+            "strategies": strategies_data,
         },
         "error": None,
         "meta": {},
