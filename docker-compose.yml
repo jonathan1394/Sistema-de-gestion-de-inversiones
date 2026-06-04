@@ -29,6 +29,7 @@ services:
       APP_MODE: ${APP_MODE:-analysis}
       KILL_SWITCH: ${KILL_SWITCH:-true}
       DATABASE_PATH: /data/market.db
+      WEB_UI_URL: ${WEB_UI_URL:-http://localhost:3001}
     volumes:
       - criptolab_data:/data
       - ./settings.yaml:/app/settings.yaml:ro

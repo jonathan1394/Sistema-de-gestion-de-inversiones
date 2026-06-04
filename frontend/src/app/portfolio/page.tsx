@@ -27,7 +27,8 @@ export default async function PortfolioPage({
   const tradesQuery = new URLSearchParams({ limit: "100", page: String(page) });
   if (symbol) tradesQuery.set("symbol", symbol);
   const trades = await apiGet<PortfolioTrade[]>(`/portfolio/trades?${tradesQuery.toString()}`);
-  const snapshots = await apiGet<Snapshot[]>("/portfolio/snapshots?limit=200&page=1");
+  const snapshotsQuery = new URLSearchParams({ limit: "200", page: String(page) });
+  const snapshots = await apiGet<Snapshot[]>(`/portfolio/snapshots?${snapshotsQuery.toString()}`);
 
   const positions = state.positions ?? [];
   const unrealized = positions.reduce((acc, p) => acc + (p.unrealized_pnl ?? 0), 0);

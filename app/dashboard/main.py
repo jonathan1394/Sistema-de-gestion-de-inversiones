@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -194,7 +195,7 @@ st.set_page_config(
 )
 
 if "page" not in st.session_state:
-    st.session_state.page = "Overview"
+    st.session_state.page = "Market Analysis"
 if "portfolio_initialized" not in st.session_state:
     st.session_state.portfolio_initialized = False
 if "portfolio_capital" not in st.session_state:
@@ -212,18 +213,14 @@ if "active_signals" not in st.session_state:
     st.session_state.active_signals = []
 
 PAGES = {
-    "Overview": "app.dashboard.pages.overview",
     "Market Analysis": "app.dashboard.pages.market_analysis",
     "Asset Detail": "app.dashboard.pages.asset_detail",
-    "Prospects": "app.dashboard.pages.prospects",
-    "Backtesting": "app.dashboard.pages.backtest",
-    "Portfolio": "app.dashboard.pages.portfolio",
-    "Journal": "app.dashboard.pages.journal",
-    "Risk": "app.dashboard.pages.risk",
-    "Alerts": "app.dashboard.pages.alerts",
-    "Logs": "app.dashboard.pages.logs",
-    "Decision Log": "app.dashboard.pages.decision_log",
-    "Ranking": "app.dashboard.pages.ranking",
+}
+
+WEB_UI_URL = os.getenv("WEB_UI_URL", "http://localhost:3001").rstrip("/")
+WEB_PAGE_ROUTES = {
+    "Market Analysis": "/market",
+    "Asset Detail": "/assets/BTCUSDT",
 }
 
 _PAGE_MODULES: dict[str, object] = {}
@@ -233,30 +230,10 @@ def _load_page_module(page_name: str) -> object | None:
     if page_name in _PAGE_MODULES:
         return _PAGE_MODULES[page_name]
     try:
-        if page_name == "Overview":
-            from app.dashboard.pages import overview as mod
-        elif page_name == "Market Analysis":
+        if page_name == "Market Analysis":
             from app.dashboard.pages import market_analysis as mod
         elif page_name == "Asset Detail":
             from app.dashboard.pages import asset_detail as mod
-        elif page_name == "Prospects":
-            from app.dashboard.pages import prospects as mod
-        elif page_name == "Backtesting":
-            from app.dashboard.pages import backtest as mod
-        elif page_name == "Portfolio":
-            from app.dashboard.pages import portfolio as mod
-        elif page_name == "Journal":
-            from app.dashboard.pages import journal as mod
-        elif page_name == "Risk":
-            from app.dashboard.pages import risk as mod
-        elif page_name == "Alerts":
-            from app.dashboard.pages import alerts as mod
-        elif page_name == "Logs":
-            from app.dashboard.pages import logs as mod
-        elif page_name == "Decision Log":
-            from app.dashboard.pages import decision_log as mod
-        elif page_name == "Ranking":
-            from app.dashboard.pages import ranking as mod
         else:
             return None
         _PAGE_MODULES[page_name] = mod
@@ -331,6 +308,32 @@ def render_overview_indicators() -> None:
         st.error("Error loading overview indicators.")
 
 
+def render_web_ui_banner(current_page: str) -> None:
+    """Promote the Next.js UI as the primary experience."""
+    page_route = WEB_PAGE_ROUTES.get(current_page)
+    page_url = f"{WEB_UI_URL}{page_route}" if page_route else WEB_UI_URL
+
+    st.markdown(
+        """
+        <div class="panel" style="margin-top:0.2rem; margin-bottom:0.8rem;">
+            <div class="badge badge-warn">LEGACY DASHBOARD</div>
+            <div class="page-title" style="margin-top:0.55rem;">La interfaz principal ahora es la web</div>
+            <div class="page-subtitle">
+                Streamlit sigue disponible como acceso legacy, pero la experiencia consolidada vive en Next.js.
+                Usa la web para filtros, paginacion y flujos nuevos entre API y frontend.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    button_cols = st.columns(2)
+    with button_cols[0]:
+        st.link_button("Abrir Web UI", WEB_UI_URL, use_container_width=True)
+    with button_cols[1]:
+        st.link_button("Abrir esta vista en Web", page_url, use_container_width=True)
+
+
 def main() -> None:
     """Render sidebar navigation and selected dashboard page content."""
     try:
@@ -339,19 +342,23 @@ def main() -> None:
         with st.sidebar:
             st.title("🧪 CriptoLab")
             st.caption("Private Crypto Investment System")
+            st.caption("Web UI principal · Streamlit legacy")
+            st.divider()
+
+            st.link_button("Open Web UI", WEB_UI_URL, use_container_width=True)
+            current_route = WEB_PAGE_ROUTES.get(st.session_state.page)
+            if current_route:
+                st.link_button(
+                    f"Open {st.session_state.page} in Web",
+                    f"{WEB_UI_URL}{current_route}",
+                    use_container_width=True,
+                )
+
             st.divider()
 
             page_icons = {
-                "Overview": "🏠",
                 "Market Analysis": "📈",
                 "Asset Detail": "🧾",
-                "Prospects": "🎯",
-                "Backtesting": "🔬",
-                "Portfolio": "💼",
-                "Journal": "📓",
-                "Risk": "🛡️",
-                "Alerts": "🔔",
-                "Logs": "📚",
             }
 
             for page_name in PAGES:
@@ -361,6 +368,8 @@ def main() -> None:
                     type="primary" if st.session_state.page == page_name else "secondary",
                 ):
                     st.session_state.page = page_name
+
+            st.caption("Streamlit conserva solo vistas legacy de analisis avanzado.")
 
             st.divider()
             config = load_settings()
@@ -375,13 +384,17 @@ def main() -> None:
             """
             <div class="top-strip">
                 <div class="page-title">CriptoLab</div>
-                <div class="page-subtitle">Panel operativo minimalista para mercado, cartera y riesgo.</div>
+                <div class="page-subtitle">Panel legacy reducido a analisis avanzado. La UI web es el acceso recomendado para la operacion diaria.</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        render_overview_indicators()
+        render_web_ui_banner(st.session_state.page)
+
+        st.caption(
+            "La web concentra overview, prospects, backtest, portfolio, risk, alerts, logs, ranking y decisiones."
+        )
 
         page_module = _load_page_module(st.session_state.page)
         if page_module and hasattr(page_module, "render"):
