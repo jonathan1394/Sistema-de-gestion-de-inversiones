@@ -7,11 +7,14 @@ type Props = {
   initialSymbol: string;
   initialInterval: string;
   initialLimit: number;
+  initialStartMs: string;
+  initialEndMs: string;
+  initialDesc: boolean;
 };
 
 const intervals = ["1h", "4h", "1d"];
 
-export function MarketControls({ initialSymbol, initialInterval, initialLimit }: Props) {
+export function MarketControls({ initialSymbol, initialInterval, initialLimit, initialStartMs, initialEndMs, initialDesc }: Props) {
   const router = useRouter();
   const sp = useSearchParams();
   const [pending, startTransition] = useTransition();
@@ -19,6 +22,9 @@ export function MarketControls({ initialSymbol, initialInterval, initialLimit }:
   const [symbol, setSymbol] = useState(initialSymbol);
   const [interval, setInterval] = useState(initialInterval);
   const [limit, setLimit] = useState(String(initialLimit));
+  const [startMs, setStartMs] = useState(initialStartMs);
+  const [endMs, setEndMs] = useState(initialEndMs);
+  const [desc, setDesc] = useState(initialDesc);
 
   const currentQuery = useMemo(() => {
     const q = new URLSearchParams(sp?.toString());
@@ -26,25 +32,16 @@ export function MarketControls({ initialSymbol, initialInterval, initialLimit }:
   }, [sp]);
 
   return (
-    <section
-      style={{
-        border: "1px solid #e5e7eb",
-        borderRadius: 12,
-        padding: 12,
-        display: "flex",
-        gap: 12,
-        alignItems: "end",
-        flexWrap: "wrap",
-      }}
-    >
-      <label style={{ display: "grid", gap: 6 }}>
-        <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Symbol</span>
-        <input value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inputStyle} />
+    <section className="panel" style={{ padding: 16 }}>
+      <div className="field-grid">
+      <label className="field">
+        <span className="field-label">Symbol</span>
+        <input value={symbol} onChange={(e) => setSymbol(e.target.value)} className="input" />
       </label>
 
-      <label style={{ display: "grid", gap: 6 }}>
-        <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Interval</span>
-        <select value={interval} onChange={(e) => setInterval(e.target.value)} style={inputStyle}>
+      <label className="field">
+        <span className="field-label">Interval</span>
+        <select value={interval} onChange={(e) => setInterval(e.target.value)} className="select">
           {intervals.map((i) => (
             <option key={i} value={i}>
               {i}
@@ -54,12 +51,30 @@ export function MarketControls({ initialSymbol, initialInterval, initialLimit }:
         </select>
       </label>
 
-      <label style={{ display: "grid", gap: 6 }}>
-        <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Limit</span>
-        <input value={limit} onChange={(e) => setLimit(e.target.value)} style={inputStyle} />
+      <label className="field">
+        <span className="field-label">Limit</span>
+        <input value={limit} onChange={(e) => setLimit(e.target.value)} className="input" />
       </label>
 
+      <label className="field">
+        <span className="field-label">Start ms</span>
+        <input value={startMs} onChange={(e) => setStartMs(e.target.value)} className="input" placeholder="1704067200000" />
+      </label>
+
+      <label className="field">
+        <span className="field-label">End ms</span>
+        <input value={endMs} onChange={(e) => setEndMs(e.target.value)} className="input" placeholder="1711929600000" />
+      </label>
+      </div>
+
+      <div className="button-row" style={{ marginTop: 14 }}>
+        <label className="button-secondary" style={{ gap: 8 }}>
+          <input type="checkbox" checked={desc} onChange={(e) => setDesc(e.target.checked)} />
+          Descending order
+        </label>
+
       <button
+        className="button-primary"
         disabled={pending}
         onClick={() => {
           startTransition(() => {
@@ -67,32 +82,19 @@ export function MarketControls({ initialSymbol, initialInterval, initialLimit }:
             q.set("symbol", symbol.trim().toUpperCase());
             q.set("interval", interval.trim());
             q.set("limit", String(Number(limit) || 200));
+            if (startMs.trim()) q.set("start_ms", startMs.trim());
+            else q.delete("start_ms");
+            if (endMs.trim()) q.set("end_ms", endMs.trim());
+            else q.delete("end_ms");
+            if (desc) q.set("desc", "true");
+            else q.delete("desc");
             router.push(`/market?${q.toString()}`);
           });
         }}
-        style={primaryButtonStyle(pending)}
       >
         {pending ? "Loading..." : "Apply"}
       </button>
+      </div>
     </section>
   );
-}
-
-const inputStyle: React.CSSProperties = {
-  border: "1px solid #e5e7eb",
-  borderRadius: 10,
-  padding: "8px 10px",
-  fontWeight: 650,
-};
-
-function primaryButtonStyle(pending: boolean): React.CSSProperties {
-  return {
-    border: "1px solid #111827",
-    borderRadius: 10,
-    padding: "8px 10px",
-    fontWeight: 800,
-    background: pending ? "#f3f4f6" : "#111827",
-    color: pending ? "#111827" : "white",
-    cursor: pending ? "not-allowed" : "pointer",
-  };
 }

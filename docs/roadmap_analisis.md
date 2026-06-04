@@ -2,6 +2,8 @@
 
 ## Estado Actual
 
+Nota de vigencia: este documento conserva roadmap y contexto histórico. A junio de 2026, el estado real del repositorio ya incluye API FastAPI, frontend Next.js, ranking web, páginas adicionales de dashboard y módulos avanzados de backtesting/IA que superan parte de este plan original.
+
 El proyecto cuenta con los siguientes modulos funcionales:
 
 | Modulo | Estado | Archivos Principales |
@@ -34,7 +36,7 @@ La mayoría de los elementos del roadmap original han sido implementados:
 ✅ **Comparación multi-timeframe** - Integrada en el análisis de mercado  
 ✅ **Persistencia de operaciones paper** - Guardadas en SQLite vía `app/paper_trading/storage.py`
 
-Algunos elementos avanzados están en progreso o planificados para fases futuras.
+Algunos apartados siguientes deben leerse como historial del plan original, no como reflejo exacto del estado actual del código.
 
 ---
 

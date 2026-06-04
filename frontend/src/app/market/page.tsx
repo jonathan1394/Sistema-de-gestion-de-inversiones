@@ -1,4 +1,4 @@
-import { Card, Page, SectionTitle, thStyle } from "@/app/components/ui";
+import { Card, Page, Panel, SectionTitle, TableWrap, thStyle, tdStyle } from "@/app/components/ui";
 import { apiGet } from "@/lib/api";
 import type { PriceResponse as Price, CandleResponse as Candle } from "@/types";
 
@@ -7,31 +7,35 @@ import { MarketControls } from "./market-controls";
 export default async function MarketPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const symbol = typeof searchParams?.symbol === "string" ? searchParams.symbol : "BTCUSDT";
-  const interval = typeof searchParams?.interval === "string" ? searchParams.interval : "1h";
-  const limit = typeof searchParams?.limit === "string" ? Number(searchParams.limit) : 200;
+  const params = (await searchParams) ?? {};
+  const symbol = typeof params.symbol === "string" ? params.symbol : "BTCUSDT";
+  const interval = typeof params.interval === "string" ? params.interval : "1h";
+  const limit = typeof params.limit === "string" ? Number(params.limit) : 200;
+  const startMs = typeof params.start_ms === "string" ? params.start_ms : "";
+  const endMs = typeof params.end_ms === "string" ? params.end_ms : "";
+  const desc = params.desc === "true";
 
   const price = await apiGet<Price>(`/market/price/${encodeURIComponent(symbol)}?interval=${encodeURIComponent(interval)}`);
-  const candles = await apiGet<Candle[]>(
-    `/market/candles/${encodeURIComponent(symbol)}/${encodeURIComponent(interval)}?limit=${encodeURIComponent(
-      String(limit)
-    )}`
-  );
+  const candlesQuery = new URLSearchParams({ limit: String(limit) });
+  if (startMs) candlesQuery.set("start_ms", startMs);
+  if (endMs) candlesQuery.set("end_ms", endMs);
+  if (desc) candlesQuery.set("desc", "true");
+  const candles = await apiGet<Candle[]>(`/market/candles/${encodeURIComponent(symbol)}/${encodeURIComponent(interval)}?${candlesQuery.toString()}`);
 
   return (
     <Page title="Market" subtitle="Price + candles (GET /market/*)">
-      <MarketControls initialSymbol={symbol} initialInterval={interval} initialLimit={limit} />
+      <MarketControls
+        initialSymbol={symbol}
+        initialInterval={interval}
+        initialLimit={limit}
+        initialStartMs={startMs}
+        initialEndMs={endMs}
+        initialDesc={desc}
+      />
 
-      <section
-        style={{
-          marginTop: 12,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 12,
-        }}
-      >
+      <section className="stats-grid" style={{ marginTop: 14 }}>
         <Card label="Symbol" value={price.symbol} />
         <Card label="Interval" value={price.interval} />
         <Card label="Price" value={`$${price.price.toFixed(2)}`} />
@@ -39,35 +43,34 @@ export default async function MarketPage({
       </section>
 
       <SectionTitle>Candles (last {candles.length})</SectionTitle>
-      <div style={{ marginTop: 8, border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "#f9fafb", textAlign: "left" }}>
-              <th style={thStyle}>Open time</th>
-              <th style={thStyle}>Open</th>
-              <th style={thStyle}>High</th>
-              <th style={thStyle}>Low</th>
-              <th style={thStyle}>Close</th>
-              <th style={thStyle}>Volume</th>
-            </tr>
-          </thead>
-          <tbody>
-            {candles
-              .slice()
-              .reverse()
-              .map((c) => (
-                <tr key={c.open_time} style={{ borderTop: "1px solid #eef2f7" }}>
-                  <td style={{ padding: 10, whiteSpace: "nowrap" }}>{new Date(c.open_time).toISOString()}</td>
-                  <td style={{ padding: 10 }}>${c.open.toFixed(2)}</td>
-                  <td style={{ padding: 10 }}>${c.high.toFixed(2)}</td>
-                  <td style={{ padding: 10 }}>${c.low.toFixed(2)}</td>
-                  <td style={{ padding: 10, fontWeight: 800 }}>${c.close.toFixed(2)}</td>
-                  <td style={{ padding: 10 }}>{c.volume.toFixed(2)}</td>
+      <Panel title="Serie OHLCV reciente">
+        <TableWrap>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={thStyle}>Open time</th>
+                <th style={thStyle}>Open</th>
+                <th style={thStyle}>High</th>
+                <th style={thStyle}>Low</th>
+                <th style={thStyle}>Close</th>
+                <th style={thStyle}>Volume</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(desc ? candles : candles.slice().reverse()).map((c) => (
+                <tr key={c.open_time}>
+                  <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>{new Date(c.open_time).toISOString()}</td>
+                  <td style={tdStyle}>${c.open.toFixed(2)}</td>
+                  <td style={tdStyle}>${c.high.toFixed(2)}</td>
+                  <td style={tdStyle}>${c.low.toFixed(2)}</td>
+                  <td style={{ ...tdStyle, fontWeight: 800 }}>${c.close.toFixed(2)}</td>
+                  <td style={tdStyle}>{c.volume.toFixed(2)}</td>
                 </tr>
               ))}
-          </tbody>
-        </table>
-      </div>
+            </tbody>
+          </table>
+        </TableWrap>
+      </Panel>
     </Page>
   );
 }

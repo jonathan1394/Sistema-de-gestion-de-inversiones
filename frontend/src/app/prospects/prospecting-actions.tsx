@@ -8,16 +8,53 @@ export function ProspectingActions() {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<string | null>(null);
+  const [symbol, setSymbol] = useState("");
+  const [interval, setInterval] = useState("1d");
+  const [newProspectSymbol, setNewProspectSymbol] = useState("");
+  const [newProspectNotes, setNewProspectNotes] = useState("");
 
   async function runScanAll() {
     setError(null);
     setLastResult(null);
-    const data = await apiPost<unknown[]>("/prospecting/scan", {});
-    setLastResult(`Scan OK (count: ${data.length})`);
+    const payload = symbol.trim() ? { symbol: symbol.trim().toUpperCase(), interval } : {};
+    const data = await apiPost<unknown[] | Record<string, unknown> | null>("/prospecting/scan", payload);
+    if (Array.isArray(data)) {
+      setLastResult(`Scan OK (count: ${data.length})`);
+      return;
+    }
+    setLastResult(data ? `Scan OK for ${symbol.trim().toUpperCase()}` : "No data returned");
+  }
+
+  async function addProspect() {
+    setError(null);
+    setLastResult(null);
+    await apiPost("/prospecting/prospects/add", {
+      symbol: newProspectSymbol.trim().toUpperCase(),
+      interval,
+      notes: newProspectNotes.trim(),
+    });
+    setLastResult(`Prospect ${newProspectSymbol.trim().toUpperCase()} added`);
+    window.location.reload();
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+    <div style={{ display: "grid", gap: 12, minWidth: 320 }}>
+      <div className="field-grid">
+        <label className="field">
+          <span className="field-label">Scan symbol</span>
+          <input value={symbol} onChange={(e) => setSymbol(e.target.value)} className="input" placeholder="Empty = scan all" />
+        </label>
+        <label className="field">
+          <span className="field-label">Interval</span>
+          <select value={interval} onChange={(e) => setInterval(e.target.value)} className="select">
+            <option value="1h">1h</option>
+            <option value="4h">4h</option>
+            <option value="1d">1d</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="button-row">
       <button
         disabled={pending}
         onClick={() => {
@@ -25,34 +62,42 @@ export function ProspectingActions() {
             runScanAll().catch((e) => setError(String(e?.message ?? e)));
           });
         }}
-        style={{
-          border: "1px solid #111827",
-          borderRadius: 10,
-          padding: "8px 10px",
-          fontWeight: 700,
-          background: pending ? "#f3f4f6" : "#111827",
-          color: pending ? "#111827" : "white",
-          cursor: pending ? "not-allowed" : "pointer",
-        }}
+        className="button-primary"
       >
         {pending ? "Scanning..." : "Run Scan"}
       </button>
-      <button
-        disabled={pending}
-        onClick={() => window.location.reload()}
-        style={{
-          border: "1px solid #e5e7eb",
-          borderRadius: 10,
-          padding: "8px 10px",
-          fontWeight: 650,
-          background: "white",
-          cursor: pending ? "not-allowed" : "pointer",
-        }}
-      >
+      <button disabled={pending} onClick={() => window.location.reload()} className="button-secondary">
         Refresh
       </button>
-      {lastResult ? <span style={{ color: "#065f46", fontWeight: 650 }}>{lastResult}</span> : null}
-      {error ? <span style={{ color: "#b91c1c", fontWeight: 650 }}>{error}</span> : null}
+      </div>
+
+      <div className="field-grid">
+        <label className="field">
+          <span className="field-label">Add prospect</span>
+          <input value={newProspectSymbol} onChange={(e) => setNewProspectSymbol(e.target.value)} className="input" placeholder="BTCUSDT" />
+        </label>
+        <label className="field">
+          <span className="field-label">Notes</span>
+          <input value={newProspectNotes} onChange={(e) => setNewProspectNotes(e.target.value)} className="input" placeholder="Optional context" />
+        </label>
+      </div>
+
+      <div className="button-row">
+        <button
+          disabled={pending || !newProspectSymbol.trim()}
+          className="button-secondary"
+          onClick={() => {
+            startTransition(() => {
+              addProspect().catch((e) => setError(String(e?.message ?? e)));
+            });
+          }}
+        >
+          Add prospect
+        </button>
+      </div>
+
+      {lastResult ? <span style={{ color: "#a7f3d0", fontWeight: 650 }}>{lastResult}</span> : null}
+      {error ? <span style={{ color: "#fca5a5", fontWeight: 650 }}>{error}</span> : null}
     </div>
   );
 }

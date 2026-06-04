@@ -14,9 +14,9 @@ type RiskEvaluatePayload = {
   stop_loss_pct?: number;
 };
 
-export function RiskEvaluator() {
+export function RiskEvaluator({ initialSymbol = "BTCUSDT" }: { initialSymbol?: string }) {
   const [pending, startTransition] = useTransition();
-  const [symbol, setSymbol] = useState("BTCUSDT");
+  const [symbol, setSymbol] = useState(initialSymbol);
   const [direction, setDirection] = useState("BUY");
   const [entryPrice, setEntryPrice] = useState("0");
   const [capital, setCapital] = useState("1000");
@@ -46,47 +46,40 @@ export function RiskEvaluator() {
 
   return (
     <div>
-      <section
-        style={{
-          border: "1px solid #e5e7eb",
-          borderRadius: 12,
-          padding: 12,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 12,
-        }}
-      >
+      <section className="panel" style={{ padding: 16 }}>
+        <div className="field-grid">
         <Field label="Symbol">
-          <input value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inputStyle} />
+          <input value={symbol} onChange={(e) => setSymbol(e.target.value)} className="input" />
         </Field>
         <Field label="Direction">
-          <select value={direction} onChange={(e) => setDirection(e.target.value)} style={inputStyle}>
+          <select value={direction} onChange={(e) => setDirection(e.target.value)} className="select">
             <option value="BUY">BUY</option>
             <option value="SELL">SELL</option>
           </select>
         </Field>
         <Field label="Entry price">
-          <input value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)} style={inputStyle} />
+          <input value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)} className="input" />
         </Field>
         <Field label="Capital">
-          <input value={capital} onChange={(e) => setCapital(e.target.value)} style={inputStyle} />
+          <input value={capital} onChange={(e) => setCapital(e.target.value)} className="input" />
         </Field>
         <Field label="Confidence (0-1)">
-          <input value={confidence} onChange={(e) => setConfidence(e.target.value)} style={inputStyle} />
+          <input value={confidence} onChange={(e) => setConfidence(e.target.value)} className="input" />
         </Field>
         <Field label="Stop loss pct (optional)">
           <input
             value={stopLossPct}
             onChange={(e) => setStopLossPct(e.target.value)}
             placeholder="e.g. 0.02"
-            style={inputStyle}
+            className="input"
           />
         </Field>
         <Field label="Reason" full>
-          <input value={reason} onChange={(e) => setReason(e.target.value)} style={inputStyle} />
+          <input value={reason} onChange={(e) => setReason(e.target.value)} className="input" />
         </Field>
+        </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <div className="button-row" style={{ marginTop: 14 }}>
           <button
             disabled={pending}
             onClick={() => {
@@ -94,14 +87,14 @@ export function RiskEvaluator() {
                 evaluate().catch((e) => setError(String(e?.message ?? e)));
               });
             }}
-            style={primaryButtonStyle(pending)}
+            className="button-primary"
           >
             {pending ? "Evaluating..." : "Evaluate"}
           </button>
-          <button disabled={pending} onClick={() => setResult(null)} style={secondaryButtonStyle(pending)}>
+          <button disabled={pending} onClick={() => setResult(null)} className="button-secondary">
             Clear
           </button>
-          {error ? <span style={{ color: "#b91c1c", fontWeight: 650 }}>{error}</span> : null}
+          {error ? <span style={{ color: "#fca5a5", fontWeight: 650 }}>{error}</span> : null}
         </div>
       </section>
 
@@ -117,41 +110,11 @@ export function RiskEvaluator() {
 
 function Field({ label, full, children }: { label: string; full?: boolean; children: React.ReactNode }) {
   return (
-    <label style={{ display: "grid", gap: 6, gridColumn: full ? "1 / -1" : undefined }}>
-      <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>{label}</span>
+    <label className="field" style={{ gridColumn: full ? "1 / -1" : undefined }}>
+      <span className="field-label">{label}</span>
       {children}
     </label>
   );
-}
-
-const inputStyle: React.CSSProperties = {
-  border: "1px solid #e5e7eb",
-  borderRadius: 10,
-  padding: "8px 10px",
-  fontWeight: 650,
-};
-
-function primaryButtonStyle(pending: boolean): React.CSSProperties {
-  return {
-    border: "1px solid #111827",
-    borderRadius: 10,
-    padding: "8px 10px",
-    fontWeight: 800,
-    background: pending ? "#f3f4f6" : "#111827",
-    color: pending ? "#111827" : "white",
-    cursor: pending ? "not-allowed" : "pointer",
-  };
-}
-
-function secondaryButtonStyle(pending: boolean): React.CSSProperties {
-  return {
-    border: "1px solid #e5e7eb",
-    borderRadius: 10,
-    padding: "8px 10px",
-    fontWeight: 650,
-    background: "white",
-    cursor: pending ? "not-allowed" : "pointer",
-  };
 }
 
 const preStyle: React.CSSProperties = {

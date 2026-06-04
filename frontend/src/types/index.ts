@@ -3,6 +3,46 @@
 export type Config = {
   mode: string;
   kill_switch: boolean;
+  capital?: {
+    initial_usdt: number;
+  };
+  fees?: {
+    trading_fee_pct: number;
+    slippage_pct: number;
+  };
+  risk?: {
+    max_position_size_pct: number;
+    max_risk_per_trade_pct: number;
+    max_total_exposure_pct: number;
+    default_stop_loss_pct: number;
+    require_stop_loss: boolean;
+  };
+  trading?: {
+    mode: string;
+    allow_real_trading: boolean;
+    allow_futures: boolean;
+    allow_leverage: boolean;
+    require_stop_loss: boolean;
+    require_take_profit: boolean;
+  };
+  timeframes?: string[];
+  alerts?: {
+    enabled: boolean;
+    check_interval_seconds: number;
+  };
+};
+
+export type SystemStatus = {
+  timestamp: string;
+};
+
+export type RiskStatus = {
+  mode: string;
+  kill_switch: boolean;
+};
+
+export type CircuitBreakerStatus = {
+  state: string;
 };
 
 export type PriceResponse = { symbol: string; interval: string; price: number; ts: number };

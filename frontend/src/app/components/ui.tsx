@@ -1,41 +1,94 @@
 import React from "react";
 
-export function Page({ title, subtitle, actions, children }: { title: string; subtitle?: string; actions?: React.ReactNode; children: React.ReactNode }) {
+export function Page({
+  title,
+  subtitle,
+  actions,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <main style={{ padding: 24, fontFamily: "system-ui" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+    <main className="page">
+      <div className="page-hero">
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>{title}</h1>
-          {subtitle ? <p style={{ color: "#6b7280", marginTop: 6, marginBottom: 0 }}>{subtitle}</p> : null}
+          <div className="page-kicker">CriptoLab Web</div>
+          <h1 className="page-title">{title}</h1>
+          {subtitle ? <p className="page-subtitle">{subtitle}</p> : null}
         </div>
-        {actions ?? null}
+        {actions ? <div className="page-actions">{actions}</div> : null}
       </div>
-      <div style={{ marginTop: 12 }}>{children}</div>
+      <div className="page-content">{children}</div>
     </main>
   );
 }
 
 export function Card({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
-      <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 700 }}>{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 800, marginTop: 4 }}>{value}</div>
+    <div className="card">
+      <div className="card-label">{label}</div>
+      <div className="card-value">{value}</div>
     </div>
   );
 }
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 style={{ marginTop: 16, fontSize: 16, fontWeight: 900 }}>{children}</h2>;
+  return <h2 className="section-title">{children}</h2>;
 }
 
-export const thStyle: React.CSSProperties = { padding: 10, fontSize: 12, color: "#6b7280" };
+export function Panel({
+  children,
+  title,
+}: {
+  children: React.ReactNode;
+  title?: string;
+}) {
+  return (
+    <section className="panel">
+      {title ? <div className="panel-header">{title}</div> : null}
+      {children}
+    </section>
+  );
+}
+
+export function TableWrap({ children }: { children: React.ReactNode }) {
+  return <div className="table-wrap">{children}</div>;
+}
+
+export function Badge({
+  children,
+  tone = "info",
+}: {
+  children: React.ReactNode;
+  tone?: "info" | "success" | "warning" | "danger";
+}) {
+  return <span className={`badge badge-${tone}`}>{children}</span>;
+}
+
+export const thStyle: React.CSSProperties = {
+  padding: "12px 14px",
+  color: "var(--muted)",
+  fontSize: 12,
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+  fontWeight: 800,
+};
+
+export const tdStyle: React.CSSProperties = {
+  padding: "13px 14px",
+  verticalAlign: "top",
+};
+
 export const preStyle: React.CSSProperties = {
   marginTop: 8,
-  padding: 12,
-  border: "1px solid #e5e7eb",
-  borderRadius: 12,
-  background: "#0b1020",
-  color: "#e5e7eb",
+  padding: 14,
+  border: "1px solid rgba(148, 163, 184, 0.14)",
+  borderRadius: 16,
+  background: "#08111f",
+  color: "#dbeafe",
   overflowX: "auto",
   fontSize: 12,
 };

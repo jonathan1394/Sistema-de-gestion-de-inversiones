@@ -2,6 +2,18 @@ import { Page, SectionTitle, thStyle } from "@/app/components/ui";
 import { apiGet } from "@/lib/api";
 import type { DecisionEntry, AlertEntry } from "@/types";
 
+function formatTimestamp(ts: string): string {
+  if (!ts) return "-";
+
+  const numericTs = Number(ts);
+  if (Number.isFinite(numericTs)) {
+    return new Date(numericTs).toLocaleString();
+  }
+
+  const parsed = new Date(ts);
+  return Number.isNaN(parsed.getTime()) ? ts : parsed.toLocaleString();
+}
+
 export default async function LogsPage() {
   const [decisions, alerts] = await Promise.all([
     apiGet<DecisionEntry[]>("/decisions?limit=100").catch(() => []),
@@ -54,7 +66,7 @@ export default async function LogsPage() {
                 return (
                   <tr key={`${entry.kind}-${i}`} style={{ borderTop: "1px solid #eef2f7" }}>
                     <td style={{ padding: 10, color: "#6b7280", whiteSpace: "nowrap", fontSize: 11 }}>
-                      {entry.ts ? new Date(Number(entry.ts)).toLocaleString() : "-"}
+                      {formatTimestamp(entry.ts)}
                     </td>
                     <td style={{ padding: 10 }}>
                       <span

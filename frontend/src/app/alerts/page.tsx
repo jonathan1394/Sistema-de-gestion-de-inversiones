@@ -1,7 +1,8 @@
-import { Page, SectionTitle, preStyle, thStyle } from "@/app/components/ui";
+import { Badge, Page, Panel, SectionTitle, TableWrap, preStyle, thStyle, tdStyle } from "@/app/components/ui";
 import { apiGet } from "@/lib/api";
 
 import { AlertsActions } from "./alerts-actions";
+import { RulesEditor } from "./rules-editor";
 
 type AlertEntry = {
   timestamp: string;
@@ -23,13 +24,17 @@ export default async function AlertsPage() {
       actions={<AlertsActions />}
     >
       <SectionTitle>Rules</SectionTitle>
-      <pre style={preStyle}>{JSON.stringify(rules, null, 2)}</pre>
+      <Panel title="Reglas activas del sistema de alertas">
+        <RulesEditor initialRules={rules} />
+        <pre style={preStyle}>{JSON.stringify(rules, null, 2)}</pre>
+      </Panel>
 
       <SectionTitle>History</SectionTitle>
-      <div style={{ marginTop: 8, border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <Panel title="Eventos registrados recientemente">
+        <TableWrap>
+          <table className="data-table">
           <thead>
-            <tr style={{ background: "#f9fafb", textAlign: "left" }}>
+            <tr>
               <th style={thStyle}>Timestamp</th>
               <th style={thStyle}>Level</th>
               <th style={thStyle}>Category</th>
@@ -40,7 +45,7 @@ export default async function AlertsPage() {
           <tbody>
             {history.length === 0 ? (
               <tr>
-                <td style={{ padding: 12, color: "#6b7280" }} colSpan={5}>
+                <td className="empty-state" colSpan={5}>
                   No hay alertas registradas.
                 </td>
               </tr>
@@ -49,18 +54,27 @@ export default async function AlertsPage() {
                 .slice()
                 .reverse()
                 .map((a, idx) => (
-                  <tr key={`${a.timestamp}-${idx}`} style={{ borderTop: "1px solid #eef2f7" }}>
-                    <td style={{ padding: 10, whiteSpace: "nowrap" }}>{a.timestamp}</td>
-                    <td style={{ padding: 10, fontWeight: 800 }}>{a.level}</td>
-                    <td style={{ padding: 10 }}>{a.category}</td>
-                    <td style={{ padding: 10, fontWeight: 700 }}>{a.title}</td>
-                    <td style={{ padding: 10, color: "#374151" }}>{a.message}</td>
+                  <tr key={`${a.timestamp}-${idx}`}>
+                    <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>{a.timestamp}</td>
+                    <td style={tdStyle}><LevelBadge value={a.level} /></td>
+                    <td style={tdStyle}>{a.category}</td>
+                    <td style={{ ...tdStyle, fontWeight: 700 }}>{a.title}</td>
+                    <td style={{ ...tdStyle, color: "var(--muted)" }}>{a.message}</td>
                   </tr>
                 ))
             )}
           </tbody>
-        </table>
-      </div>
+          </table>
+        </TableWrap>
+      </Panel>
     </Page>
   );
+}
+
+function LevelBadge({ value }: { value: string }) {
+  const normalized = value.toLowerCase();
+  if (normalized.includes("error") || normalized.includes("critical")) return <Badge tone="danger">{value}</Badge>;
+  if (normalized.includes("warn")) return <Badge tone="warning">{value}</Badge>;
+  if (normalized.includes("trade")) return <Badge tone="success">{value}</Badge>;
+  return <Badge tone="info">{value}</Badge>;
 }

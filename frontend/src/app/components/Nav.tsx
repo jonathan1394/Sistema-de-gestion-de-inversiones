@@ -20,35 +20,24 @@ export function Nav() {
   const pathname = usePathname();
 
   return (
-    <nav
-      style={{
-        display: "flex",
-        gap: 12,
-        flexWrap: "wrap",
-        padding: "12px 16px",
-        borderBottom: "1px solid #e5e7eb",
-        position: "sticky",
-        top: 0,
-        background: "white",
-        zIndex: 10,
-      }}
-    >
-      {links.map((l) => {
-        const active = pathname === l.href;
-        return (
-          <Link
-            key={l.href}
-            href={l.href}
-            style={{
-              textDecoration: "none",
-              color: active ? "#111827" : "#374151",
-              fontWeight: active ? 700 : 600,
-            }}
-          >
-            {l.label}
-          </Link>
-        );
-      })}
-    </nav>
+    <header className="topbar">
+      <div className="topbar-inner">
+        <div className="brand">
+          <span className="brand-title">CriptoLab</span>
+          <span className="brand-subtitle">Panel operativo, señales y control de riesgo</span>
+        </div>
+
+        <nav className="nav-links" aria-label="Main navigation">
+          {links.map((l) => {
+            const active = pathname === l.href;
+            return (
+              <Link key={l.href} href={l.href} className={`nav-link${active ? " active" : ""}`}>
+                {l.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+    </header>
   );
 }

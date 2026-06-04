@@ -10,6 +10,8 @@ Sistema privado de inversión cripto enfocado en disciplina, gestión de riesgo 
 - Sistema de gestión de riesgo (tamaño de posición, stop-loss, límites de exposición)
 - Paper trading con persistencia en base de datos
 - Dashboard interactivo con Streamlit para análisis y monitoreo
+- API REST con FastAPI para exponer datos, riesgo, backtesting y portfolio
+- Frontend web en Next.js conectado a la API
 - Sistema de prospección y scoring de activos
 - Sistema de alertas configurables con detección de drawdown
 - Diario de trading para análisis de comportamiento
@@ -33,7 +35,9 @@ El proyecto sigue una arquitectura modular bajo el directorio `app/`:
 - `app/ai`: Análisis de mercado, explicación de señales y análisis de diario
 - `app/prospecting`: Screening y scoring de activos
 - `app/dashboard`: Interfaz Streamlit con múltiples páginas
+- `app/api`: API REST con FastAPI para frontend y automatizaciones
 - `app/config`: Carga de configuración desde settings.yaml y variables de entorno
+- `frontend/`: Aplicación web Next.js
 
 ## Configuración
 
@@ -149,6 +153,50 @@ El dashboard proporciona acceso a:
 - Alerts: Gestión de reglas y notificaciones
 - Logs: Visor de eventos del sistema
 
+### API REST
+
+```bash
+# Iniciar la API
+python -m scripts.run_api --host 0.0.0.0 --port 8000 --reload
+```
+
+Endpoints principales disponibles bajo `/api/v1`:
+
+- `GET /system/health`
+- `GET /config`
+- `GET /market/summary`
+- `GET /market/price/{symbol}`
+- `GET /portfolio/state`
+- `GET /risk/limits`
+- `POST /risk/evaluate`
+- `GET /backtest/strategies`
+- `POST /backtest/run`
+- `GET /prospecting/ranking`
+
+### Frontend Web
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Variables recomendadas:
+
+- `NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000/api/v1`
+
+### Docker Compose
+
+```bash
+docker compose up --build
+```
+
+Servicios incluidos:
+
+- `api`: FastAPI en puerto `8001` por defecto
+- `dashboard`: Streamlit en puerto `8501`
+- `web`: Next.js en puerto `3001`
+
 ## Notas de seguridad
 
 - Nunca usar API keys con permisos de retiro
@@ -187,8 +235,9 @@ El proyecto sigue un roadmap por fases:
 
 **Fase 1 (Completa)**: Base de datos y análisis histórico
 **Fase 2 (Completa)**: Backtesting básico
-**Fase 3 (En progreso)**: Motor de riesgo y paper trading
-**Fase 4-5 (Planificada)**: Dashboard completo, analisis de mercado, reportes
+**Fase 3 (Completa)**: Motor de riesgo y paper trading
+**Fase 4 (Completa)**: Dashboard Streamlit, análisis de mercado y reportes
+**Fase 5 (En progreso)**: Consolidación web sobre FastAPI + Next.js
 
 Consulte `docs/roadmap_analisis.md` para el plan detallado de desarrollo.
 

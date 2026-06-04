@@ -11,7 +11,26 @@ def test_api_config_exists() -> None:
         assert resp.status_code == 200
         payload = resp.json()
         assert payload["status"] == "ok"
+        assert payload["data"]["mode"]
+        assert payload["data"]["kill_switch"] in {True, False}
         assert "database" in payload["data"]
+        assert "binance_api_key" not in payload["data"]
+
+
+def test_api_alert_rules_roundtrip(tmp_path, monkeypatch) -> None:
+    rules_file = tmp_path / "alert_rules.json"
+    monkeypatch.setattr("app.api.routes.alerts.RULES_FILE", rules_file)
+
+    payload = {"price": {"enabled": False, "check_interval_seconds": 900}}
+
+    with TestClient(create_app()) as client:
+        post_resp = client.post("/api/v1/alerts/rules", json=payload)
+        assert post_resp.status_code == 200
+        assert post_resp.json()["data"]["updated"] is True
+
+        get_resp = client.get("/api/v1/alerts/rules")
+        assert get_resp.status_code == 200
+        assert get_resp.json()["data"] == payload
 
 
 def test_api_backtest_strategies() -> None:

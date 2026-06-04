@@ -1,8 +1,10 @@
 import Link from "next/link";
 
-import { Page, Card, SectionTitle, preStyle } from "@/app/components/ui";
+import { Page, Card, SectionTitle } from "@/app/components/ui";
 import { apiGet } from "@/lib/api";
 import type { PriceResponse, CandleResponse, Ranking } from "@/types";
+
+import { AssetIntervalControls } from "./asset-interval-controls";
 
 function trendColor(v: string | null | undefined): string {
   if (!v) return "#6b7280";
@@ -11,21 +13,20 @@ function trendColor(v: string | null | undefined): string {
   return "#6b7280";
 }
 
-function fmtPct(v: number | null | undefined): string {
-  return v == null ? "-" : `${(v * 100).toFixed(2)}%`;
-}
-
 type Props = {
   params: Promise<{ symbol: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function AssetDetailPage({ params }: Props) {
+export default async function AssetDetailPage({ params, searchParams }: Props) {
   const { symbol } = await params;
+  const query = (await searchParams) ?? {};
   const sym = symbol.toUpperCase();
+  const interval = typeof query.interval === "string" ? query.interval : "1d";
 
   const [priceData, decisionData, candles] = await Promise.all([
     apiGet<PriceResponse>(`/market/price/${sym}`).catch(() => null),
-    apiGet<Ranking>(`/prospecting/decision/${sym}`).catch(() => null),
+    apiGet<Ranking>(`/prospecting/decision/${sym}?interval=${encodeURIComponent(interval)}`).catch(() => null),
     apiGet<CandleResponse[]>(`/market/candles/${sym}/1h?limit=100`).catch(() => []),
   ]);
 
@@ -43,6 +44,8 @@ export default async function AssetDetailPage({ params }: Props) {
         <Card label="Confluence" value={decisionData?.confluence != null ? `${decisionData.confluence}/3` : "—"} />
         <Card label="Recommendation" value={decisionData?.recommendation ?? "—"} />
       </div>
+
+      <AssetIntervalControls initialInterval={interval} />
 
       {decisionData && (
         <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>

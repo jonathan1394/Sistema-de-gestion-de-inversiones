@@ -2,12 +2,14 @@
 
 import { useMemo, useState, useTransition } from "react";
 
+import { Card, preStyle } from "@/app/components/ui";
 import { apiPost } from "@/lib/api";
 
 type Strategy = { id: string; label: string };
 
 type Props = {
   strategies: Strategy[];
+  initialSymbol: string;
 };
 
 type BacktestResponse = {
@@ -25,9 +27,9 @@ type BacktestResponse = {
   equity_curve: Array<{ timestamp: string; equity: number }>;
 };
 
-export function BacktestRunner({ strategies }: Props) {
+export function BacktestRunner({ strategies, initialSymbol }: Props) {
   const [pending, startTransition] = useTransition();
-  const [symbol, setSymbol] = useState("BTCUSDT");
+  const [symbol, setSymbol] = useState(initialSymbol);
   const [interval, setInterval] = useState("1h");
   const [capital, setCapital] = useState("1000");
   const [limit, setLimit] = useState("1000");
@@ -64,53 +66,47 @@ export function BacktestRunner({ strategies }: Props) {
 
   return (
     <div>
-      <section
-        style={{
-          border: "1px solid #e5e7eb",
-          borderRadius: 12,
-          padding: 12,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 12,
-        }}
-      >
-        <label style={{ display: "grid", gap: 6 }}>
-          <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Symbol</span>
-          <input value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inputStyle} />
-        </label>
-        <label style={{ display: "grid", gap: 6 }}>
-          <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Interval</span>
-          <input value={interval} onChange={(e) => setInterval(e.target.value)} style={inputStyle} />
-        </label>
-        <label style={{ display: "grid", gap: 6 }}>
-          <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Strategy</span>
-          <select value={strategy} onChange={(e) => setStrategy(e.target.value)} style={inputStyle}>
-            {strategyOptions.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label style={{ display: "grid", gap: 6 }}>
-          <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Capital</span>
-          <input value={capital} onChange={(e) => setCapital(e.target.value)} style={inputStyle} />
-        </label>
-        <label style={{ display: "grid", gap: 6 }}>
-          <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Candle limit</span>
-          <input value={limit} onChange={(e) => setLimit(e.target.value)} style={inputStyle} />
-        </label>
-        <label style={{ display: "grid", gap: 6, gridColumn: "1 / -1" }}>
-          <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Params (JSON)</span>
-          <textarea
-            value={paramsJson}
-            onChange={(e) => setParamsJson(e.target.value)}
-            rows={4}
-            style={{ ...inputStyle, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}
-          />
-        </label>
+      <section className="panel" style={{ padding: 16 }}>
+        <div className="field-grid">
+          <label className="field">
+            <span className="field-label">Symbol</span>
+            <input value={symbol} onChange={(e) => setSymbol(e.target.value)} className="input" />
+          </label>
+          <label className="field">
+            <span className="field-label">Interval</span>
+            <input value={interval} onChange={(e) => setInterval(e.target.value)} className="input" />
+          </label>
+          <label className="field">
+            <span className="field-label">Strategy</span>
+            <select value={strategy} onChange={(e) => setStrategy(e.target.value)} className="select">
+              {strategyOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span className="field-label">Capital</span>
+            <input value={capital} onChange={(e) => setCapital(e.target.value)} className="input" />
+          </label>
+          <label className="field">
+            <span className="field-label">Candle limit</span>
+            <input value={limit} onChange={(e) => setLimit(e.target.value)} className="input" />
+          </label>
+          <label className="field" style={{ gridColumn: "1 / -1" }}>
+            <span className="field-label">Params (JSON)</span>
+            <textarea
+              value={paramsJson}
+              onChange={(e) => setParamsJson(e.target.value)}
+              rows={4}
+              className="textarea"
+              style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}
+            />
+          </label>
+        </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <div className="button-row" style={{ marginTop: 14 }}>
           <button
             disabled={pending}
             onClick={() => {
@@ -118,28 +114,21 @@ export function BacktestRunner({ strategies }: Props) {
                 run().catch((e) => setError(String(e?.message ?? e)));
               });
             }}
-            style={primaryButtonStyle(pending)}
+            className="button-primary"
           >
             {pending ? "Running..." : "Run backtest"}
           </button>
-          <button disabled={pending} onClick={() => setData(null)} style={secondaryButtonStyle(pending)}>
+          <button disabled={pending} onClick={() => setData(null)} className="button-secondary">
             Clear result
           </button>
-          {error ? <span style={{ color: "#b91c1c", fontWeight: 650 }}>{error}</span> : null}
+          {error ? <span style={{ color: "#fca5a5", fontWeight: 650 }}>{error}</span> : null}
         </div>
       </section>
 
       {data ? (
         <section style={{ marginTop: 14 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 800 }}>Result</h2>
-          <div
-            style={{
-              marginTop: 8,
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 12,
-            }}
-          >
+          <h2 className="section-title">Result</h2>
+          <div className="stats-grid">
             <Card label="Strategy" value={data.result.strategy_name} />
             <Card label="Final capital" value={fmtMoney(data.result.final_capital)} />
             <Card label="Fees" value={fmtMoney(data.result.total_fees)} />
@@ -169,57 +158,7 @@ export function BacktestRunner({ strategies }: Props) {
   );
 }
 
-function Card({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
-      <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 700 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 800, marginTop: 4 }}>{value}</div>
-    </div>
-  );
-}
-
 function fmtMoney(v: number): string {
   if (!Number.isFinite(v)) return "-";
   return `$${v.toFixed(2)}`;
 }
-
-const inputStyle: React.CSSProperties = {
-  border: "1px solid #e5e7eb",
-  borderRadius: 10,
-  padding: "8px 10px",
-  fontWeight: 650,
-};
-
-function primaryButtonStyle(pending: boolean): React.CSSProperties {
-  return {
-    border: "1px solid #111827",
-    borderRadius: 10,
-    padding: "8px 10px",
-    fontWeight: 800,
-    background: pending ? "#f3f4f6" : "#111827",
-    color: pending ? "#111827" : "white",
-    cursor: pending ? "not-allowed" : "pointer",
-  };
-}
-
-function secondaryButtonStyle(pending: boolean): React.CSSProperties {
-  return {
-    border: "1px solid #e5e7eb",
-    borderRadius: 10,
-    padding: "8px 10px",
-    fontWeight: 650,
-    background: "white",
-    cursor: pending ? "not-allowed" : "pointer",
-  };
-}
-
-const preStyle: React.CSSProperties = {
-  marginTop: 8,
-  padding: 12,
-  border: "1px solid #e5e7eb",
-  borderRadius: 12,
-  background: "#0b1020",
-  color: "#e5e7eb",
-  overflowX: "auto",
-  fontSize: 12,
-};
