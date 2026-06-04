@@ -2,9 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-function apiBase(): string {
-  return process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000/api/v1";
-}
+import { apiPost } from "@/lib/api";
 
 export function AlertsActions() {
   const [pending, startTransition] = useTransition();
@@ -14,14 +12,7 @@ export function AlertsActions() {
   async function clearHistory() {
     setError(null);
     setInfo(null);
-    const res = await fetch(`${apiBase()}/alerts/history/clear`, {
-      method: "POST",
-      headers: { Accept: "application/json" },
-    });
-    const payload = await res.json().catch(() => null);
-    if (!res.ok || payload?.status !== "ok") {
-      throw new Error(payload?.error?.message ?? `HTTP ${res.status}`);
-    }
+    await apiPost("/alerts/history/clear");
     setInfo("Historial limpiado");
   }
 

@@ -44,3 +44,7 @@ reports/
 
 # Config local overrides
 config/settings.local.yaml
+
+# Coverage
+.coverage
+coverage/

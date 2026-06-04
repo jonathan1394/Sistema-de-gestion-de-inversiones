@@ -2,9 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-function apiBase(): string {
-  return process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000/api/v1";
-}
+import { apiPost } from "@/lib/api";
 
 type RiskEvaluatePayload = {
   symbol: string;
@@ -42,17 +40,8 @@ export function RiskEvaluator() {
     };
     if (stopLossPct.trim()) payload.stop_loss_pct = Number(stopLossPct);
 
-    const res = await fetch(`${apiBase()}/risk/evaluate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const body = await res.json().catch(() => null);
-    if (!res.ok || body?.status !== "ok") {
-      const msg = body?.error?.message ?? body?.detail ?? `HTTP ${res.status}`;
-      throw new Error(msg);
-    }
-    setResult(body.data);
+    const data = await apiPost("/risk/evaluate", payload);
+    setResult(data);
   }
 
   return (

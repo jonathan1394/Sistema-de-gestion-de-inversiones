@@ -1,12 +1,6 @@
 import { Card, Page, SectionTitle, thStyle } from "@/app/components/ui";
 import { apiGet } from "@/lib/api";
-
-type Config = {
-  mode: string;
-  kill_switch: boolean;
-};
-
-type MarketPrice = { symbol: string; interval: string; price: number; ts: number };
+import type { Config, PriceResponse as MarketPrice } from "@/types";
 
 export default async function OverviewPage() {
   const cfg = await apiGet<Config>("/config");

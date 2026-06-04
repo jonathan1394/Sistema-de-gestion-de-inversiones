@@ -1,19 +1,8 @@
 import { Card, Page, SectionTitle, thStyle } from "@/app/components/ui";
 import { apiGet } from "@/lib/api";
+import type { PriceResponse as Price, CandleResponse as Candle } from "@/types";
 
 import { MarketControls } from "./market-controls";
-
-type Price = { symbol: string; interval: string; price: number; ts: number };
-type Candle = {
-  symbol: string;
-  interval: string;
-  open_time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-};
 
 export default async function MarketPage({
   searchParams,

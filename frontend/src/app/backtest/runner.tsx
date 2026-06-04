@@ -2,6 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 
+import { apiPost } from "@/lib/api";
+
 type Strategy = { id: string; label: string };
 
 type Props = {
@@ -22,10 +24,6 @@ type BacktestResponse = {
   trades: Array<Record<string, unknown>>;
   equity_curve: Array<{ timestamp: string; equity: number }>;
 };
-
-function apiBase(): string {
-  return process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000/api/v1";
-}
 
 export function BacktestRunner({ strategies }: Props) {
   const [pending, startTransition] = useTransition();
@@ -60,19 +58,8 @@ export function BacktestRunner({ strategies }: Props) {
       params,
     };
 
-    const res = await fetch(`${apiBase()}/backtest/run`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    const body = await res.json().catch(() => null);
-    if (!res.ok || body?.status !== "ok") {
-      const msg = body?.error?.message ?? body?.detail ?? `HTTP ${res.status}`;
-      throw new Error(msg);
-    }
-
-    setData(body.data as BacktestResponse);
+    const data = await apiPost<BacktestResponse>("/backtest/run", payload);
+    setData(data);
   }
 
   return (

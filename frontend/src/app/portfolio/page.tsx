@@ -1,34 +1,11 @@
 import { Card, Page, SectionTitle, thStyle } from "@/app/components/ui";
 import { apiGet } from "@/lib/api";
+import type { PortfolioPosition, PortfolioTrade } from "@/types";
 
 import { PortfolioActions } from "./portfolio-actions";
 
-type Position = {
-  symbol: string;
-  quantity: number;
-  entry_price: number;
-  current_price: number;
-  unrealized_pnl: number;
-  entry_time: string;
-  updated_at: string;
-};
-
 type PortfolioState = {
-  positions: Position[];
-};
-
-type Trade = {
-  id: number;
-  symbol: string;
-  interval: string;
-  action: string;
-  quantity: number;
-  price: number;
-  commission: number;
-  pnl: number;
-  pnl_pct: number;
-  reason: string;
-  created_at: string;
+  positions: PortfolioPosition[];
 };
 
 type Snapshot = {
@@ -40,7 +17,7 @@ type Snapshot = {
 
 export default async function PortfolioPage() {
   const state = await apiGet<PortfolioState>("/portfolio/state");
-  const trades = await apiGet<Trade[]>("/portfolio/trades?limit=100&page=1");
+  const trades = await apiGet<PortfolioTrade[]>("/portfolio/trades?limit=100&page=1");
   const snapshots = await apiGet<Snapshot[]>("/portfolio/snapshots?limit=200&page=1");
 
   const positions = state.positions ?? [];

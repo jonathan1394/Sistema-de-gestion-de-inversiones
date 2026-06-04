@@ -2,9 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-function apiBase(): string {
-  return process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000/api/v1";
-}
+import { apiPost } from "@/lib/api";
 
 export function ProspectingActions() {
   const [pending, startTransition] = useTransition();
@@ -14,16 +12,8 @@ export function ProspectingActions() {
   async function runScanAll() {
     setError(null);
     setLastResult(null);
-    const res = await fetch(`${apiBase()}/prospecting/scan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({}),
-    });
-    const payload = await res.json().catch(() => null);
-    if (!res.ok || payload?.status !== "ok") {
-      throw new Error(payload?.error?.message ?? `HTTP ${res.status}`);
-    }
-    setLastResult(`Scan OK (count: ${Array.isArray(payload.data) ? payload.data.length : 0})`);
+    const data = await apiPost<unknown[]>("/prospecting/scan", {});
+    setLastResult(`Scan OK (count: ${data.length})`);
   }
 
   return (

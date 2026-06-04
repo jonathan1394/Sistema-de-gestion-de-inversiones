@@ -22,18 +22,16 @@ function isApiEnvelope<T>(payload: unknown): payload is ApiEnvelope<T> {
 }
 
 function apiBase(): string {
-  // In dev, we call the Python API directly.
-  // In prod, you can set NEXT_PUBLIC_API_BASE or use Next rewrites.
   return process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000/api/v1";
 }
 
-export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
+async function apiFetch<T>(path: string, init: RequestInit): Promise<T> {
   const url = `${apiBase()}${path.startsWith("/") ? path : `/${path}`}`;
   const res = await fetch(url, {
     ...init,
-    method: "GET",
     headers: {
       Accept: "application/json",
+      "Content-Type": "application/json",
       ...(init?.headers ?? {}),
     },
     cache: "no-store",
@@ -55,4 +53,28 @@ export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError("Unexpected API response", res.status, payload);
   }
   return payload.data;
+}
+
+export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
+  return apiFetch<T>(path, { ...init, method: "GET" });
+}
+
+export async function apiPost<T>(path: string, body?: unknown, init?: RequestInit): Promise<T> {
+  return apiFetch<T>(path, {
+    ...init,
+    method: "POST",
+    body: body != null ? JSON.stringify(body) : undefined,
+  });
+}
+
+export async function apiPut<T>(path: string, body?: unknown, init?: RequestInit): Promise<T> {
+  return apiFetch<T>(path, {
+    ...init,
+    method: "PUT",
+    body: body != null ? JSON.stringify(body) : undefined,
+  });
+}
+
+export async function apiDelete<T>(path: string, init?: RequestInit): Promise<T> {
+  return apiFetch<T>(path, { ...init, method: "DELETE" });
 }
