@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import argparse
-import logging
 import sys
+
+from loguru import logger
 
 from app.config import load_settings
 from app.data.binance_client import BinanceClient
@@ -18,17 +19,15 @@ from app.prospecting.db import (
 )
 from app.prospecting.screener import ProspectScreener
 
-logger = logging.getLogger(__name__)
-
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Analyze and track investment prospects"
-    )
+    parser = argparse.ArgumentParser(description="Analyze and track investment prospects")
     sub = parser.add_subparsers(dest="action", required=True)
 
     p_list = sub.add_parser("list", help="List all prospects")
-    p_list.add_argument("--status", default=None, help="Filter by status (watching, active, archived, rejected)")
+    p_list.add_argument(
+        "--status", default=None, help="Filter by status (watching, active, archived, rejected)"
+    )
 
     p_add = sub.add_parser("add", help="Add a symbol as a prospect")
     p_add.add_argument("--symbol", required=True, help="Symbol like BTCUSDT")
@@ -46,13 +45,17 @@ def parse_args() -> argparse.Namespace:
     p_scan = sub.add_parser("scan", help="Run screening analysis on all or a specific prospect")
     p_scan.add_argument("--symbol", default=None, help="Specific symbol to scan (optional)")
     p_scan.add_argument("--interval", default="1d", help="Interval")
-    p_scan.add_argument("--download", action="store_true", default=True, help="Download data if missing")
+    p_scan.add_argument(
+        "--download", action="store_true", default=True, help="Download data if missing"
+    )
     p_scan.add_argument("--limit", type=int, default=200, help="Max candles to analyze")
 
     p_report = sub.add_parser("report", help="Generate a screening report")
 
     p_scan_all = sub.add_parser("scan-all", help="Run screening on all prospects")
-    p_scan_all.add_argument("--download", action="store_true", default=True, help="Download data if missing")
+    p_scan_all.add_argument(
+        "--download", action="store_true", default=True, help="Download data if missing"
+    )
     p_scan_all.add_argument("--limit", type=int, default=200, help="Max candles to analyze")
     p_scan_all.add_argument("--settings", default="settings.yaml", help="Path to settings YAML")
     return parser.parse_args()
@@ -87,11 +90,15 @@ def cmd_list(args: argparse.Namespace) -> None:
     if not prospects:
         logger.info("No prospects found.")
         return
-    print(f"{'Symbol':12s} {'Interval':6s} {'Status':10s} {'Score':>6s}  {'Trend':14s} {'Signals':>7s}  {'Last Analysis':16s}")
+    print(
+        f"{'Symbol':12s} {'Interval':6s} {'Status':10s} {'Score':>6s}  {'Trend':14s} {'Signals':>7s}  {'Last Analysis':16s}"
+    )
     print("-" * 75)
     for p in prospects:
         last = str(p.last_analysis_at) if p.last_analysis_at else "-"
-        print(f"{p.symbol:12s} {p.interval:6s} {p.status:10s} {p.score:>6.2f}  {str(p.trend or '-'):14s} {p.signals_count:>7d}  {last:16s}")
+        print(
+            f"{p.symbol:12s} {p.interval:6s} {p.status:10s} {p.score:>6.2f}  {str(p.trend or '-'):14s} {p.signals_count:>7d}  {last:16s}"
+        )
 
 
 def cmd_add(args: argparse.Namespace) -> None:
@@ -122,7 +129,9 @@ def cmd_scan(args: argparse.Namespace) -> None:
     if args.symbol:
         result = screener.run_on_symbol(args.symbol, args.interval)
         if result is None:
-            logger.warning("Could not screen %s (%s) — insufficient data.", args.symbol, args.interval)
+            logger.warning(
+                "Could not screen %s (%s) — insufficient data.", args.symbol, args.interval
+            )
             return
         assets = [result]
     else:
@@ -143,7 +152,7 @@ def cmd_report(args: argparse.Namespace) -> None:
     archived = [p for p in prospects if p.status == "archived"]
 
     print("\nProspect Report")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
     print(f"Total prospects: {len(prospects)}")
     print(f"  Watching: {len(watching)}")
     print(f"  Active:   {len(active)}")
@@ -159,10 +168,14 @@ def _print_results(assets) -> None:
     if not assets:
         logger.info("No assets screened.")
         return
-    print(f"\n{'Symbol':12s} {'Score':>6s} {'Return':>7s} {'Vol':>5s} {'Trend':14s} {'Signals':>7s}")
+    print(
+        f"\n{'Symbol':12s} {'Score':>6s} {'Return':>7s} {'Vol':>5s} {'Trend':14s} {'Signals':>7s}"
+    )
     print("-" * 55)
     for a in assets:
-        print(f"{a.symbol:12s} {a.score.total:>6.3f} {a.return_pct:>+6.2f}% {a.volatility:>5s} {a.trend:14s} {a.strategy_signals:>7d}")
+        print(
+            f"{a.symbol:12s} {a.score.total:>6.3f} {a.return_pct:>+6.2f}% {a.volatility:>5s} {a.trend:14s} {a.strategy_signals:>7d}"
+        )
     print()
 
 

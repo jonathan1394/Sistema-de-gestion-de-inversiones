@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from fastapi import APIRouter, Query, Request
 
 from app.governance.decision_log import get_recent_decisions
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/decisions", tags=["decisions"])
 
 

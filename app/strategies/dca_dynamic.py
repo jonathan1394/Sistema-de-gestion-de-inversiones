@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import logging
-
 import pandas as pd
 
 from app.strategies.base_strategy import BaseStrategy, Signal, StrategyResult
 
-logger = logging.getLogger(__name__)
 
 class DCADynamic(BaseStrategy):
     """Periodic dollar-cost averaging with dynamic position sizing based on drawdown."""
@@ -60,17 +57,19 @@ class DCADynamic(BaseStrategy):
             position_size_pct = 0.1 * multiplier
 
             price = row["close"]
-            signals.append(Signal(
-                symbol=symbol,
-                timestamp=pd.Timestamp(idx),
-                action="BUY",
-                price=price,
-                reason=f"Periodic DCA buy (drop={drop:.1%}, mult={multiplier:.1f}x)",
-                confidence=self.confidence,
-                risk_score=self.risk_score,
-                position_size_pct=min(position_size_pct, 0.5),
-                stop_loss=price * (1 - self.stop_loss_pct),
-                take_profit=price * (1 + self.take_profit_pct),
-            ))
+            signals.append(
+                Signal(
+                    symbol=symbol,
+                    timestamp=pd.Timestamp(idx),
+                    action="BUY",
+                    price=price,
+                    reason=f"Periodic DCA buy (drop={drop:.1%}, mult={multiplier:.1f}x)",
+                    confidence=self.confidence,
+                    risk_score=self.risk_score,
+                    position_size_pct=min(position_size_pct, 0.5),
+                    stop_loss=price * (1 - self.stop_loss_pct),
+                    take_profit=price * (1 + self.take_profit_pct),
+                )
+            )
 
         return StrategyResult(signals=signals)

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import logging
 import sys
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # Ensure the app module can be found when running via streamlit
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -295,7 +294,11 @@ def render_overview_indicators() -> None:
         total_pnl_pct = (tv - cap) / cap * 100 if cap > 0 else 0.0
         if tv > st.session_state.portfolio_peak:
             st.session_state.portfolio_peak = tv
-        dd = (st.session_state.portfolio_peak - tv) / st.session_state.portfolio_peak * 100 if st.session_state.portfolio_peak > 0 else 0
+        dd = (
+            (st.session_state.portfolio_peak - tv) / st.session_state.portfolio_peak * 100
+            if st.session_state.portfolio_peak > 0
+            else 0
+        )
         exposure = (tv - st.session_state.portfolio_cash) / tv * 100 if tv > 0 else 0
 
         col1, col2, col3, col4 = st.columns(4)

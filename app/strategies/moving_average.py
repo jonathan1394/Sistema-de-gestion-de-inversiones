@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import logging
-
 import pandas as pd
 
 from app.strategies.base_strategy import BaseStrategy, Signal, StrategyResult
 
-logger = logging.getLogger(__name__)
 
 class MovingAverageCrossover(BaseStrategy):
     """Buy when fast EMA crosses above slow EMA, sell on the reverse."""
@@ -41,26 +38,30 @@ class MovingAverageCrossover(BaseStrategy):
         signals: list[Signal] = []
         for idx in buy_idx:
             price = df.loc[idx, "close"]
-            signals.append(Signal(
-                symbol=symbol,
-                timestamp=pd.Timestamp(idx),
-                price=price,
-                action="BUY",
-                reason=f"EMA{fast_period} crossed above EMA{slow_period}",
-                confidence=self.confidence,
-                risk_score=self.risk_score,
-                stop_loss=price * (1 - self.stop_loss_pct),
-                take_profit=price * (1 + self.take_profit_pct),
-            ))
+            signals.append(
+                Signal(
+                    symbol=symbol,
+                    timestamp=pd.Timestamp(idx),
+                    price=price,
+                    action="BUY",
+                    reason=f"EMA{fast_period} crossed above EMA{slow_period}",
+                    confidence=self.confidence,
+                    risk_score=self.risk_score,
+                    stop_loss=price * (1 - self.stop_loss_pct),
+                    take_profit=price * (1 + self.take_profit_pct),
+                )
+            )
         for idx in sell_idx:
-            signals.append(Signal(
-                symbol=symbol,
-                timestamp=pd.Timestamp(idx),
-                price=df.loc[idx, "close"],
-                action="SELL",
-                reason=f"EMA{fast_period} crossed below EMA{slow_period}",
-                confidence=self.confidence,
-                risk_score=self.risk_score,
-            ))
+            signals.append(
+                Signal(
+                    symbol=symbol,
+                    timestamp=pd.Timestamp(idx),
+                    price=df.loc[idx, "close"],
+                    action="SELL",
+                    reason=f"EMA{fast_period} crossed below EMA{slow_period}",
+                    confidence=self.confidence,
+                    risk_score=self.risk_score,
+                )
+            )
 
         return StrategyResult(signals=signals)

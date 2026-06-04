@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
-import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Optional
 
 import pandas as pd
 
-logger = logging.getLogger(__name__)
-
 
 @dataclass
 class Signal:
     """Represents a single buy/sell signal emitted by a strategy."""
+
     symbol: str
     timestamp: pd.Timestamp
     action: str
@@ -31,6 +29,7 @@ class Signal:
 @dataclass
 class StrategyResult:
     """Container for signals produced by a strategy run."""
+
     signals: list[Signal] = field(default_factory=list)
     warning: str = ""
 

@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class ExposureCheckResult:
@@ -45,7 +43,8 @@ def check_exposure(
     """
     if portfolio.total_capital <= 0:
         return ExposureCheckResult(
-            approved=False, rejection_reason="Total capital must be positive",
+            approved=False,
+            rejection_reason="Total capital must be positive",
         )
 
     current_asset_value = abs(portfolio.positions.get(symbol, 0.0))
@@ -66,9 +65,7 @@ def check_exposure(
             asset_exposure_after_pct=asset_after * 100,
             total_exposure_after_pct=total_after * 100,
             max_asset_pct=max_asset_pct,
-            rejection_reason=(
-                f"Asset exposure {asset_after:.1%} exceeds max {max_asset_pct:.0%}"
-            ),
+            rejection_reason=(f"Asset exposure {asset_after:.1%} exceeds max {max_asset_pct:.0%}"),
         )
 
     if total_after > max_total_pct:
@@ -80,9 +77,7 @@ def check_exposure(
             asset_exposure_after_pct=asset_after * 100,
             total_exposure_after_pct=total_after * 100,
             max_total_pct=max_total_pct,
-            rejection_reason=(
-                f"Total exposure {total_after:.1%} exceeds max {max_total_pct:.0%}"
-            ),
+            rejection_reason=(f"Total exposure {total_after:.1%} exceeds max {max_total_pct:.0%}"),
         )
 
     if altcoin_symbols and symbol in altcoin_symbols:
@@ -117,7 +112,6 @@ def check_exposure(
 def _calc_altcoin_exposure(portfolio: PortfolioState, altcoin_set: set[str]) -> float:
     """Return current total altcoin exposure as a capital fraction (gross)."""
     altcoin_value = sum(
-        abs(value) for sym, value in portfolio.positions.items()
-        if sym in altcoin_set
+        abs(value) for sym, value in portfolio.positions.items() if sym in altcoin_set
     )
     return altcoin_value / portfolio.total_capital if portfolio.total_capital > 0 else 0.0

@@ -50,12 +50,28 @@ Comprehensive gate/validator system at `quality/`. Gates (Phase1–Phase6) verif
 
 ## Session Summary — Fase 2 (2026-06-02)
 ### Completed
+- **2.1.1 CI/CD GitHub Actions**: Enhanced CI pipeline in `.github/workflows/ci.yml`:
+  - `lint-check`: ruff check + ruff format --check + mypy (Python 3.10, 3.11, 3.12 matrix)
+  - `test`: pytest with coverage report + XML, Codecov upload on main (Python 3.10, 3.11, 3.12 matrix)
+  - `security`: bandit secrets scan + pip-audit dependency audit
+  - `build`: python -m build verification
+  - `quality-gate`: python -m quality.quality_agent --check-all (runs on all branches after lint+test)
+  - Env vars: `APP_MODE=analysis`, `KILL_SWITCH=true`, `DATABASE_PATH=./data/market.db`
+  - Concurrency: cancel-in-progress for same ref
 - **2.1 Strategy Registry**: Auto-discovery via entry_points, fallback import, lazy loading.
 - **2.2 Short Positions**: VirtualPortfolio sell/short/buy/cover, BacktestEngine short entries/exits, trailing stop for shorts (`is_short` param), config `allow_shorts`, metrics track short trades separately.
 - **2.3 Trailing Stop + TP Dinámico**: `TrailingStop` class, `take_profit_dynamic()` based on ATR, integrated into RiskManager and BacktestEngine.
+- **2.1.3 Alembic migrations**: Two migration files (`ca52cc9a3084` initial schema + `7eaf882f9721` indexes). `get_connection()` auto-applies migrations via `_migrate_once()` cache. `alembic/env.py` resolves DB path from `load_settings()` with fallback. Head revision: `7eaf882f9721`. Full round-trip tests (upgrade → downgrade → upgrade) on file-based databases. `sqlalchemy>=2.0` and `alembic>=1.13` declared in dev deps. 9 migration tests (was 3).
 - **2.4 Data Layer**: `connection_scope()` context manager, `DataAccessObject` class, Alembic migration for indexes, batch store_klines with chunking.
 - **2.5 Dashboard Refactor**: Helpers (`candles_to_dataframe`, `get_current_price`, `get_portfolio_value`, `update_portfolio_prices`, `add_snapshot`), `portfolio_state.py` cleanup, `main.py` explicit imports, `asset_detail.py` deduplication, strategies loaded from config.
-### Test Count: 233 (was 129)
+### Test Count: 276 (was 129)
+
+### Docker Setup
+- `Dockerfile.dashboard`: Streamlit dashboard, `pip install -e ".[dashboard,backtesting,api]"`, includes alembic migration files
+- `Dockerfile.api`: FastAPI backend, `pip install -e ".[api,backtesting]"`, includes alembic
+- `frontend/Dockerfile`: Next.js frontend (separate context)
+- `docker-compose.yml`: 3 services (api, dashboard, web), shared named volume `criptolab_data`, healthcheck on API, `restart: unless-stopped`
+- `.env.example`: env override docs for Docker Compose (APP_MODE, KILL_SWITCH, ports)
 ### Known Issues
 - `asset_detail.py:render()` has high cyclomatic complexity (20) and length (122 lines) — pre-existing
 - `docker-compose.yml` references `app/main.py` which doesn't exist yet

@@ -20,15 +20,25 @@ class DummyStrategy(BaseStrategy):
         signals = []
         dates = data.index
         if len(dates) >= 6:
-            signals.append(Signal(
-                symbol="BTCUSDT", timestamp=dates[2], action="BUY",
-                price=data.iloc[2]["close"], reason="test buy",
-                position_size_pct=0.5,
-            ))
-            signals.append(Signal(
-                symbol="BTCUSDT", timestamp=dates[5], action="SELL",
-                price=data.iloc[5]["close"], reason="test sell",
-            ))
+            signals.append(
+                Signal(
+                    symbol="BTCUSDT",
+                    timestamp=dates[2],
+                    action="BUY",
+                    price=data.iloc[2]["close"],
+                    reason="test buy",
+                    position_size_pct=0.5,
+                )
+            )
+            signals.append(
+                Signal(
+                    symbol="BTCUSDT",
+                    timestamp=dates[5],
+                    action="SELL",
+                    price=data.iloc[5]["close"],
+                    reason="test sell",
+                )
+            )
         return StrategyResult(signals=signals)
 
 
@@ -39,15 +49,26 @@ class DummyShortStrategy(BaseStrategy):
         signals = []
         dates = data.index
         if len(dates) >= 6:
-            signals.append(Signal(
-                symbol="BTCUSDT", timestamp=dates[2], action="BUY",
-                price=data.iloc[2]["close"], reason="test short",
-                direction="short", position_size_pct=0.5,
-            ))
-            signals.append(Signal(
-                symbol="BTCUSDT", timestamp=dates[5], action="SELL",
-                price=data.iloc[5]["close"], reason="test cover",
-            ))
+            signals.append(
+                Signal(
+                    symbol="BTCUSDT",
+                    timestamp=dates[2],
+                    action="BUY",
+                    price=data.iloc[2]["close"],
+                    reason="test short",
+                    direction="short",
+                    position_size_pct=0.5,
+                )
+            )
+            signals.append(
+                Signal(
+                    symbol="BTCUSDT",
+                    timestamp=dates[5],
+                    action="SELL",
+                    price=data.iloc[5]["close"],
+                    reason="test cover",
+                )
+            )
         return StrategyResult(signals=signals)
 
 
@@ -59,16 +80,26 @@ class DummyTrailingStrategy(BaseStrategy):
         dates = data.index
         if len(dates) >= 6:
             entry_price = data.iloc[2]["close"]
-            signals.append(Signal(
-                symbol="BTCUSDT", timestamp=dates[2], action="BUY",
-                price=entry_price, reason="test with stop",
-                position_size_pct=0.5,
-                stop_loss=entry_price * 0.95,
-            ))
-            signals.append(Signal(
-                symbol="BTCUSDT", timestamp=dates[5], action="SELL",
-                price=data.iloc[5]["close"], reason="test sell",
-            ))
+            signals.append(
+                Signal(
+                    symbol="BTCUSDT",
+                    timestamp=dates[2],
+                    action="BUY",
+                    price=entry_price,
+                    reason="test with stop",
+                    position_size_pct=0.5,
+                    stop_loss=entry_price * 0.95,
+                )
+            )
+            signals.append(
+                Signal(
+                    symbol="BTCUSDT",
+                    timestamp=dates[5],
+                    action="SELL",
+                    price=data.iloc[5]["close"],
+                    reason="test sell",
+                )
+            )
         return StrategyResult(signals=signals)
 
 
@@ -76,13 +107,16 @@ def _make_data(n=10):
     dates = pd.date_range("2024-01-01", periods=n, freq="1h")
     np.random.seed(42)
     prices = 100 + np.cumsum(np.random.randn(n) * 0.5)
-    return pd.DataFrame({
-        "open": prices,
-        "high": prices + 0.5,
-        "low": prices - 0.5,
-        "close": prices,
-        "volume": np.ones(n) * 1000,
-    }, index=dates)
+    return pd.DataFrame(
+        {
+            "open": prices,
+            "high": prices + 0.5,
+            "low": prices - 0.5,
+            "close": prices,
+            "volume": np.ones(n) * 1000,
+        },
+        index=dates,
+    )
 
 
 class TestBacktestEngine:
@@ -116,9 +150,7 @@ class TestBacktestEngine:
 
     def test_slippage_affects_execution_price(self):
         data = _make_data()
-        engine = BacktestEngine(
-            DummyStrategy(), data, slippage_pct=0.05, commission_pct=0.0
-        )
+        engine = BacktestEngine(DummyStrategy(), data, slippage_pct=0.05, commission_pct=0.0)
         result = engine.run()
         assert result.final_capital > 0
 
@@ -152,14 +184,17 @@ class TestBacktestEngine:
     def test_short_profit_on_downward_move(self):
         dates = pd.date_range("2024-01-01", periods=10, freq="1h")
         prices = [100, 101, 100, 99, 98, 97, 96, 95, 94, 93]
-        data = pd.DataFrame({
-            "open": prices, "high": [p + 0.5 for p in prices],
-            "low": [p - 0.5 for p in prices], "close": prices,
-            "volume": [1000] * 10,
-        }, index=dates)
-        engine = BacktestEngine(
-            DummyShortStrategy(), data, commission_pct=0.0, slippage_pct=0.0
+        data = pd.DataFrame(
+            {
+                "open": prices,
+                "high": [p + 0.5 for p in prices],
+                "low": [p - 0.5 for p in prices],
+                "close": prices,
+                "volume": [1000] * 10,
+            },
+            index=dates,
         )
+        engine = BacktestEngine(DummyShortStrategy(), data, commission_pct=0.0, slippage_pct=0.0)
         result = engine.run()
         assert result.final_capital > result.initial_capital
 
@@ -167,7 +202,8 @@ class TestBacktestEngine:
         data = _make_data()
         cfg = TrailingStopConfig(activation_pct=0.01, trail_pct=0.02)
         engine = BacktestEngine(
-            DummyTrailingStrategy(), data,
+            DummyTrailingStrategy(),
+            data,
             trailing_stop_config=cfg,
         )
         result = engine.run()
@@ -177,7 +213,8 @@ class TestBacktestEngine:
         data = _make_data()
         cfg = TrailingStopConfig(activation_pct=0.01, trail_pct=0.02)
         trailing = BacktestEngine(
-            DummyTrailingStrategy(), data,
+            DummyTrailingStrategy(),
+            data,
             trailing_stop_config=cfg,
         ).run()
         assert trailing.final_capital > 0
@@ -186,7 +223,8 @@ class TestBacktestEngine:
         data = _make_data()
         cfg = TrailingStopConfig(activation_pct=0.01, trail_pct=0.02)
         engine = BacktestEngine(
-            DummyShortStrategy(), data,
+            DummyShortStrategy(),
+            data,
             trailing_stop_config=cfg,
         )
         result = engine.run()
@@ -215,9 +253,9 @@ class TestBacktestEngineWithRiskManager:
     def test_rm_blocks_signal_gets_rejected(self):
         rm = RiskManager(circuit_breakers=MagicMock(trading_allowed=True))
         rm._circuit_breakers.can_open_new_position.return_value = MagicMock(trading_allowed=True)
-        rm.evaluate = MagicMock(return_value=RiskDecision(
-            approved=False, rejection_reason="Risk limit exceeded"
-        ))
+        rm.evaluate = MagicMock(
+            return_value=RiskDecision(approved=False, rejection_reason="Risk limit exceeded")
+        )
         engine = self._make_engine(rm)
         result = engine.run()
         assert len(result.trades) == 0
@@ -227,9 +265,9 @@ class TestBacktestEngineWithRiskManager:
     def test_rm_rejected_signals_contain_timestamp_and_reason(self):
         rm = RiskManager(circuit_breakers=MagicMock(trading_allowed=True))
         rm._circuit_breakers.can_open_new_position.return_value = MagicMock(trading_allowed=True)
-        rm.evaluate = MagicMock(return_value=RiskDecision(
-            approved=False, rejection_reason="Daily loss limit"
-        ))
+        rm.evaluate = MagicMock(
+            return_value=RiskDecision(approved=False, rejection_reason="Daily loss limit")
+        )
         engine = self._make_engine(rm)
         result = engine.run()
         assert len(result.rejected_signals) > 0
@@ -264,9 +302,13 @@ class TestBacktestEngineWithRiskManager:
             stop_loss=StopLossResult(stop_price=99.0, distance_pct=0.01, method="fixed"),
         )
         decision.position_size = PositionSizeResult(
-            position_size=0.5, position_value=100.0,
-            risk_amount=1.0, risk_pct=0.01, entry_price=100.0,
-            stop_loss=99.0, max_risk_pct=0.01,
+            position_size=0.5,
+            position_value=100.0,
+            risk_amount=1.0,
+            risk_pct=0.01,
+            entry_price=100.0,
+            stop_loss=99.0,
+            max_risk_pct=0.01,
         )
         rm.evaluate = MagicMock(return_value=decision)
 
@@ -284,9 +326,13 @@ class TestBacktestEngineWithRiskManager:
             stop_loss=StopLossResult(stop_price=102.0, distance_pct=0.02, method="fixed"),
         )
         decision.position_size = PositionSizeResult(
-            position_size=1.0, position_value=500.0,
-            risk_amount=5.0, risk_pct=0.01, entry_price=100.0,
-            stop_loss=102.0, max_risk_pct=0.01,
+            position_size=1.0,
+            position_value=500.0,
+            risk_amount=5.0,
+            risk_pct=0.01,
+            entry_price=100.0,
+            stop_loss=102.0,
+            max_risk_pct=0.01,
         )
         rm.evaluate = MagicMock(return_value=decision)
         data = _make_data()
@@ -309,9 +355,13 @@ class TestBacktestEngineWithRiskManager:
             take_profit=StopLossResult(stop_price=106.0, distance_pct=0.06, method="atr"),
         )
         decision.position_size = PositionSizeResult(
-            position_size=1.0, position_value=500.0,
-            risk_amount=5.0, risk_pct=0.01, entry_price=100.0,
-            stop_loss=98.0, max_risk_pct=0.01,
+            position_size=1.0,
+            position_value=500.0,
+            risk_amount=5.0,
+            risk_pct=0.01,
+            entry_price=100.0,
+            stop_loss=98.0,
+            max_risk_pct=0.01,
         )
         rm.evaluate = MagicMock(return_value=decision)
 
@@ -323,10 +373,12 @@ class TestBacktestEngineWithRiskManager:
         """Verify evaluate receives proper TradeProposal."""
         rm = RiskManager(circuit_breakers=MagicMock(trading_allowed=True))
         rm._circuit_breakers.can_open_new_position.return_value = MagicMock(trading_allowed=True)
-        rm.evaluate = MagicMock(return_value=RiskDecision(
-            approved=True,
-            stop_loss=StopLossResult(stop_price=99.0, distance_pct=0.01, method="fixed"),
-        ))
+        rm.evaluate = MagicMock(
+            return_value=RiskDecision(
+                approved=True,
+                stop_loss=StopLossResult(stop_price=99.0, distance_pct=0.01, method="fixed"),
+            )
+        )
 
         engine = self._make_engine(rm)
         engine.run()

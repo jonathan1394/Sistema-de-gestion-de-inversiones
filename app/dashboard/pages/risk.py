@@ -2,22 +2,23 @@
 
 from __future__ import annotations
 
-import logging
-
 import streamlit as st
+from loguru import logger
 
 from app.config import load_settings
 from app.risk.circuit_breakers import CircuitBreakers
-
-logger = logging.getLogger(__name__)
 
 
 def _render_position_sizing(config) -> None:
     st.subheader("Position Sizing")
     st.metric("Max por operacion", f"{config.risk.max_position_size_pct * 100:.2f}%", border=True)
-    st.metric("Riesgo por operacion", f"{config.risk.max_risk_per_trade_pct * 100:.2f}%", border=True)
+    st.metric(
+        "Riesgo por operacion", f"{config.risk.max_risk_per_trade_pct * 100:.2f}%", border=True
+    )
     st.subheader("Stop Loss")
-    st.metric("Stop Loss por defecto", f"{config.risk.default_stop_loss_pct * 100:.2f}%", border=True)
+    st.metric(
+        "Stop Loss por defecto", f"{config.risk.default_stop_loss_pct * 100:.2f}%", border=True
+    )
     st.metric("Stop minimo", f"{config.risk.min_stop_loss_pct * 100:.2f}%", border=True)
     st.metric("Stop maximo", f"{config.risk.max_stop_loss_pct * 100:.2f}%", border=True)
 
@@ -41,7 +42,9 @@ def _render_kill_switch(config) -> None:
     else:
         st.success("Kill Switch inactivo - Operaciones permitidas")
     if ks_active != config.kill_switch:
-        st.warning("Cambio solo visual. Usa KILL_SWITCH en el entorno o ajusta la configuracion para persistir.")
+        st.warning(
+            "Cambio solo visual. Usa KILL_SWITCH en el entorno o ajusta la configuracion para persistir."
+        )
 
 
 def _render_circuit_breaker_state(config) -> None:
@@ -65,9 +68,15 @@ def _render_circuit_breaker_state(config) -> None:
 def _render_trading_requirements(config) -> None:
     st.subheader("Requisitos de Trading")
     tr_cols = st.columns(3)
-    tr_cols[0].metric("Requiere Stop Loss", "Si" if config.trading.require_stop_loss else "No", border=True)
-    tr_cols[1].metric("Futuros permitidos", "No" if not config.trading.allow_futures else "Si", border=True)
-    tr_cols[2].metric("Apalancamiento", "No" if not config.trading.allow_leverage else "Si", border=True)
+    tr_cols[0].metric(
+        "Requiere Stop Loss", "Si" if config.trading.require_stop_loss else "No", border=True
+    )
+    tr_cols[1].metric(
+        "Futuros permitidos", "No" if not config.trading.allow_futures else "Si", border=True
+    )
+    tr_cols[2].metric(
+        "Apalancamiento", "No" if not config.trading.allow_leverage else "Si", border=True
+    )
 
 
 def render() -> None:
@@ -97,7 +106,9 @@ def render() -> None:
         _render_circuit_breaker_state(config)
         st.divider()
         _render_trading_requirements(config)
-        st.caption("Estos valores usan la configuracion cargada, incluyendo overrides por variables de entorno.")
+        st.caption(
+            "Estos valores usan la configuracion cargada, incluyendo overrides por variables de entorno."
+        )
     except Exception:
         logger.exception("Error rendering risk page")
         st.error("Error loading risk page.")

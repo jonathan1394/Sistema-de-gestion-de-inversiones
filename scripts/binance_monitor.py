@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import argparse
-import logging
+
+from loguru import logger
 
 from app.config import load_settings
 from app.execution import (
@@ -12,14 +13,15 @@ from app.execution import (
 )
 from app.logging_setup import setup_logging
 
-logger = logging.getLogger(__name__)
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Binance account monitor and executor")
-    parser.add_argument("--action", default="status",
-                        choices=["status", "balances", "orders", "history"],
-                        help="Action to perform")
+    parser.add_argument(
+        "--action",
+        default="status",
+        choices=["status", "balances", "orders", "history"],
+        help="Action to perform",
+    )
     parser.add_argument("--symbol", default="", help="Symbol filter (e.g. BTCUSDT)")
     parser.add_argument("--limit", type=int, default=20, help="History limit")
     parser.add_argument("--settings", default="settings.yaml", help="Settings YAML path")
@@ -30,7 +32,9 @@ def parse_args() -> argparse.Namespace:
 def format_balances(balances: list) -> str:
     lines = ["Balances:"]
     for b in balances:
-        lines.append(f"  {b.asset:8s}  Free: {b.free:>12.6f}  Locked: {b.locked:>12.6f}  Total: {b.total:>12.6f}")
+        lines.append(
+            f"  {b.asset:8s}  Free: {b.free:>12.6f}  Locked: {b.locked:>12.6f}  Total: {b.total:>12.6f}"
+        )
     return "\n".join(lines)
 
 
@@ -38,9 +42,13 @@ def format_orders(orders: list) -> str:
     if not orders:
         return "No orders found."
     lines = ["Orders:"]
-    lines.append(f"  {'ID':>8s}  {'Symbol':10s}  {'Side':5s}  {'Type':7s}  {'Price':>12s}  {'Qty':>12s}  {'Filled':>12s}  {'Status':12s}")
+    lines.append(
+        f"  {'ID':>8s}  {'Symbol':10s}  {'Side':5s}  {'Type':7s}  {'Price':>12s}  {'Qty':>12s}  {'Filled':>12s}  {'Status':12s}"
+    )
     for o in orders:
-        lines.append(f"  {o.order_id:>8d}  {o.symbol:10s}  {o.side:5s}  {o.type:7s}  {o.price:>12.2f}  {o.orig_qty:>12.6f}  {o.executed_qty:>12.6f}  {o.status:12s}")
+        lines.append(
+            f"  {o.order_id:>8d}  {o.symbol:10s}  {o.side:5s}  {o.type:7s}  {o.price:>12.2f}  {o.orig_qty:>12.6f}  {o.executed_qty:>12.6f}  {o.status:12s}"
+        )
     return "\n".join(lines)
 
 
@@ -86,7 +94,10 @@ def _check_connectivity_and_permissions(executor) -> tuple[bool, str]:
     perms = executor.validate_permissions()
     logger.info("API Permissions: %s", "valid" if perms.valid else "invalid")
     logger.info("  Trade: %s", "enabled" if perms.can_trade else "disabled")
-    logger.info("  Withdraw: %s (should be disabled)", "enabled" if perms.can_withdraw_assets else "disabled")
+    logger.info(
+        "  Withdraw: %s (should be disabled)",
+        "enabled" if perms.can_withdraw_assets else "disabled",
+    )
     logger.info("  Read-only: %s", "yes" if perms.read_only else "no")
 
     if perms.can_withdraw_assets:

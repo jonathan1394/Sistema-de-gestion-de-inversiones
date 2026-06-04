@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -15,8 +14,6 @@ from app.risk.exposure_limits import (
 from app.risk.position_sizing import PositionSizeResult, calculate_position_size
 from app.risk.stop_loss import StopLossResult, fixed_percentage, take_profit_dynamic
 from app.risk.trailing_stop import TrailingStopConfig
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -114,14 +111,20 @@ class RiskManager:
 
         sl_result: StopLossResult | None = None
         if stop_loss_price is not None:
-            sl_result = StopLossResult(stop_price=stop_loss_price, distance_pct=0, method="provided")
+            sl_result = StopLossResult(
+                stop_price=stop_loss_price, distance_pct=0, method="provided"
+            )
         elif stop_loss_pct is not None:
             sl_result = fixed_percentage(proposal.entry_price, stop_loss_pct, proposal.direction)
         else:
-            sl_result = fixed_percentage(proposal.entry_price, self._default_stop_loss_pct, proposal.direction)
+            sl_result = fixed_percentage(
+                proposal.entry_price, self._default_stop_loss_pct, proposal.direction
+            )
 
         if sl_result is None or sl_result.rejected:
-            decision.rejection_reason = sl_result.rejection_reason if sl_result else "Invalid stop-loss"
+            decision.rejection_reason = (
+                sl_result.rejection_reason if sl_result else "Invalid stop-loss"
+            )
             return decision
 
         decision.stop_loss = sl_result

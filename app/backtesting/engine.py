@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -13,8 +12,6 @@ from app.risk.exposure_limits import PortfolioState
 from app.risk.risk_manager import RiskDecision, RiskManager, TradeProposal
 from app.risk.trailing_stop import TrailingStop, TrailingStopConfig
 from app.strategies.base_strategy import BaseStrategy, Signal
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -83,11 +80,14 @@ class BacktestEngine:
         high = self.data["high"]
         low = self.data["low"]
         close = self.data["close"]
-        tr = pd.concat([
-            high - low,
-            (high - close.shift(1)).abs(),
-            (low - close.shift(1)).abs(),
-        ], axis=1).max(axis=1)
+        tr = pd.concat(
+            [
+                high - low,
+                (high - close.shift(1)).abs(),
+                (low - close.shift(1)).abs(),
+            ],
+            axis=1,
+        ).max(axis=1)
         return tr.ewm(span=period, adjust=False).mean()
 
     def run(self) -> BacktestResult:
@@ -95,9 +95,9 @@ class BacktestEngine:
         signal_map = self._build_signal_map(data)
 
         needs_atr = (
-            (self._risk_manager is not None and self._risk_manager.take_profit_atr_multiplier is not None)
-            or self._trailing_stop_config is not None
-        )
+            self._risk_manager is not None
+            and self._risk_manager.take_profit_atr_multiplier is not None
+        ) or self._trailing_stop_config is not None
         if needs_atr and "high" in data.columns and "low" in data.columns:
             self._atr_series = self._compute_atr()
 
@@ -151,20 +151,28 @@ class BacktestEngine:
                             atr_value=atr_val,
                         )
                         if not decision.approved:
-                            rejected_signals.append({
-                                "timestamp": str(timestamp),
-                                "reason": sig.reason,
-                                "rejection": decision.rejection_reason,
-                            })
+                            rejected_signals.append(
+                                {
+                                    "timestamp": str(timestamp),
+                                    "reason": sig.reason,
+                                    "rejection": decision.rejection_reason,
+                                }
+                            )
                             continue
                         result = self._enter_position_rm(timestamp, price, sig, cash, decision)
                         trailing = self._init_trailing(
-                            price, sig, decision, atr_val, is_short,
+                            price,
+                            sig,
+                            decision,
+                            atr_val,
+                            is_short,
                         )
                     else:
                         result = self._enter_position(timestamp, price, sig, cash)
                         trailing = self._init_trailing_simple(
-                            price, sig, is_short,
+                            price,
+                            sig,
+                            is_short,
                         )
                     trades.append(result["trade"])
                     pos = result["pos"]
@@ -211,8 +219,14 @@ class BacktestEngine:
 
     def _empty_position(self) -> dict:
         return {
-            "qty": 0.0, "entry_px": 0.0, "stop": None, "tp": None,
-            "reason": "", "entry_time": None, "fees": 0.0, "hold": 0,
+            "qty": 0.0,
+            "entry_px": 0.0,
+            "stop": None,
+            "tp": None,
+            "reason": "",
+            "entry_time": None,
+            "fees": 0.0,
+            "hold": 0,
             "direction": "long",
         }
 
@@ -226,8 +240,12 @@ class BacktestEngine:
             return None
 
     def _init_trailing(
-        self, price: float, sig: Signal, decision: RiskDecision,
-        atr_val: float | None, is_short: bool,
+        self,
+        price: float,
+        sig: Signal,
+        decision: RiskDecision,
+        atr_val: float | None,
+        is_short: bool,
     ) -> TrailingStop | None:
         if self._trailing_stop_config is None:
             return None
@@ -236,22 +254,34 @@ class BacktestEngine:
             dist = atr_val * (cfg.atr_multiplier or 2.0)
             initial_stop = price - dist if not is_short else price + dist
         else:
-            initial_stop = price * (1 - cfg.trail_pct) if not is_short else price * (1 + cfg.trail_pct)
+            initial_stop = (
+                price * (1 - cfg.trail_pct) if not is_short else price * (1 + cfg.trail_pct)
+            )
         if decision.stop_loss is not None:
             initial_stop = decision.stop_loss.stop_price
-        return TrailingStop(cfg, price, direction="short" if is_short else "long", initial_stop=initial_stop)
+        return TrailingStop(
+            cfg, price, direction="short" if is_short else "long", initial_stop=initial_stop
+        )
 
     def _init_trailing_simple(
-        self, price: float, sig: Signal, is_short: bool,
+        self,
+        price: float,
+        sig: Signal,
+        is_short: bool,
     ) -> TrailingStop | None:
         if self._trailing_stop_config is None:
             return None
         cfg = self._trailing_stop_config
         initial_stop = sig.stop_loss
-        return TrailingStop(cfg, price, direction="short" if is_short else "long", initial_stop=initial_stop)
+        return TrailingStop(
+            cfg, price, direction="short" if is_short else "long", initial_stop=initial_stop
+        )
 
     def _update_trailing_stop(
-        self, trailing: TrailingStop | None, row: pd.Series, timestamp: pd.Timestamp,
+        self,
+        trailing: TrailingStop | None,
+        row: pd.Series,
+        timestamp: pd.Timestamp,
     ) -> None:
         if trailing is None:
             return
@@ -262,8 +292,12 @@ class BacktestEngine:
         trailing.update(price, high=high, low=low, atr_value=atr_val)
 
     def _check_exit(
-        self, timestamp: pd.Timestamp, price: float, sig: Signal | None,
-        pos: dict, cash: float,
+        self,
+        timestamp: pd.Timestamp,
+        price: float,
+        sig: Signal | None,
+        pos: dict,
+        cash: float,
     ) -> dict | None:
         pos["hold"] += 1
         is_short = pos.get("direction", "long") == "short"
@@ -308,21 +342,34 @@ class BacktestEngine:
 
         return {
             "trade": TradeRecord(
-                symbol=self.symbol, side=side,
-                entry_time=pos["entry_time"] or timestamp, exit_time=timestamp,
-                entry_price=pos["entry_px"], exit_price=exec_px,
+                symbol=self.symbol,
+                side=side,
+                entry_time=pos["entry_time"] or timestamp,
+                exit_time=timestamp,
+                entry_price=pos["entry_px"],
+                exit_price=exec_px,
                 quantity=abs(pos["qty"]),
-                fees=pos["fees"] + fee, pnl=pnl,
+                fees=pos["fees"] + fee,
+                pnl=pnl,
                 pnl_pct=pnl / entry_notional if entry_notional > 0 else 0.0,
-                reason_entry=pos["reason"], reason_exit=reason, status="closed",
-                hold_bars=pos["hold"], stop_loss=pos["stop"], take_profit=pos["tp"],
+                reason_entry=pos["reason"],
+                reason_exit=reason,
+                status="closed",
+                hold_bars=pos["hold"],
+                stop_loss=pos["stop"],
+                take_profit=pos["tp"],
                 direction=pos.get("direction", "long"),
             ),
-            "cash": net_cash, "fees": fee,
+            "cash": net_cash,
+            "fees": fee,
         }
 
     def _enter_position(
-        self, timestamp: pd.Timestamp, price: float, sig: Signal, cash: float,
+        self,
+        timestamp: pd.Timestamp,
+        price: float,
+        sig: Signal,
+        cash: float,
     ) -> dict:
         is_short = sig.direction == "short"
         alloc = min(sig.position_size_pct or 1.0, 1.0)
@@ -337,19 +384,31 @@ class BacktestEngine:
 
             return {
                 "trade": TradeRecord(
-                    symbol=self.symbol, side="SELL", entry_time=timestamp,
-                    entry_price=exec_px, quantity=qty, fees=fee,
-                    reason_entry=sig.reason, status="open",
-                    stop_loss=sig.stop_loss, take_profit=sig.take_profit,
+                    symbol=self.symbol,
+                    side="SELL",
+                    entry_time=timestamp,
+                    entry_price=exec_px,
+                    quantity=qty,
+                    fees=fee,
+                    reason_entry=sig.reason,
+                    status="open",
+                    stop_loss=sig.stop_loss,
+                    take_profit=sig.take_profit,
                     direction="short",
                 ),
                 "pos": {
-                    "qty": -qty, "entry_px": exec_px, "stop": sig.stop_loss,
-                    "tp": sig.take_profit, "reason": sig.reason,
-                    "entry_time": timestamp, "fees": fee, "hold": 0,
+                    "qty": -qty,
+                    "entry_px": exec_px,
+                    "stop": sig.stop_loss,
+                    "tp": sig.take_profit,
+                    "reason": sig.reason,
+                    "entry_time": timestamp,
+                    "fees": fee,
+                    "hold": 0,
                     "direction": "short",
                 },
-                "cash": net_cash, "fees": fee,
+                "cash": net_cash,
+                "fees": fee,
             }
 
         invest = cash * alloc
@@ -359,23 +418,39 @@ class BacktestEngine:
 
         return {
             "trade": TradeRecord(
-                symbol=self.symbol, side="BUY", entry_time=timestamp,
-                entry_price=exec_px, quantity=qty, fees=fee,
-                reason_entry=sig.reason, status="open",
-                stop_loss=sig.stop_loss, take_profit=sig.take_profit,
+                symbol=self.symbol,
+                side="BUY",
+                entry_time=timestamp,
+                entry_price=exec_px,
+                quantity=qty,
+                fees=fee,
+                reason_entry=sig.reason,
+                status="open",
+                stop_loss=sig.stop_loss,
+                take_profit=sig.take_profit,
                 direction="long",
             ),
             "pos": {
-                "qty": qty, "entry_px": exec_px, "stop": sig.stop_loss,
-                "tp": sig.take_profit, "reason": sig.reason,
-                "entry_time": timestamp, "fees": fee, "hold": 0,
+                "qty": qty,
+                "entry_px": exec_px,
+                "stop": sig.stop_loss,
+                "tp": sig.take_profit,
+                "reason": sig.reason,
+                "entry_time": timestamp,
+                "fees": fee,
+                "hold": 0,
                 "direction": "long",
             },
-            "cash": cash - invest, "fees": fee,
+            "cash": cash - invest,
+            "fees": fee,
         }
 
     def _enter_position_rm(
-        self, timestamp: pd.Timestamp, price: float, sig: Signal, cash: float,
+        self,
+        timestamp: pd.Timestamp,
+        price: float,
+        sig: Signal,
+        cash: float,
         decision: RiskDecision,
     ) -> dict:
         is_short = sig.direction == "short"
@@ -392,19 +467,31 @@ class BacktestEngine:
 
             return {
                 "trade": TradeRecord(
-                    symbol=self.symbol, side="SELL", entry_time=timestamp,
-                    entry_price=exec_px, quantity=qty, fees=fee,
-                    reason_entry=sig.reason, status="open",
-                    stop_loss=stop, take_profit=sig.take_profit,
+                    symbol=self.symbol,
+                    side="SELL",
+                    entry_time=timestamp,
+                    entry_price=exec_px,
+                    quantity=qty,
+                    fees=fee,
+                    reason_entry=sig.reason,
+                    status="open",
+                    stop_loss=stop,
+                    take_profit=sig.take_profit,
                     direction="short",
                 ),
                 "pos": {
-                    "qty": -qty, "entry_px": exec_px, "stop": stop,
-                    "tp": sig.take_profit, "reason": sig.reason,
-                    "entry_time": timestamp, "fees": fee, "hold": 0,
+                    "qty": -qty,
+                    "entry_px": exec_px,
+                    "stop": stop,
+                    "tp": sig.take_profit,
+                    "reason": sig.reason,
+                    "entry_time": timestamp,
+                    "fees": fee,
+                    "hold": 0,
                     "direction": "short",
                 },
-                "cash": net_cash, "fees": fee,
+                "cash": net_cash,
+                "fees": fee,
             }
 
         exec_px = price * (1 + self.slippage_pct)
@@ -414,19 +501,31 @@ class BacktestEngine:
 
         return {
             "trade": TradeRecord(
-                symbol=self.symbol, side="BUY", entry_time=timestamp,
-                entry_price=exec_px, quantity=qty, fees=fee,
-                reason_entry=sig.reason, status="open",
-                stop_loss=stop, take_profit=sig.take_profit,
+                symbol=self.symbol,
+                side="BUY",
+                entry_time=timestamp,
+                entry_price=exec_px,
+                quantity=qty,
+                fees=fee,
+                reason_entry=sig.reason,
+                status="open",
+                stop_loss=stop,
+                take_profit=sig.take_profit,
                 direction="long",
             ),
             "pos": {
-                "qty": qty, "entry_px": exec_px, "stop": stop,
-                "tp": sig.take_profit, "reason": sig.reason,
-                "entry_time": timestamp, "fees": fee, "hold": 0,
+                "qty": qty,
+                "entry_px": exec_px,
+                "stop": stop,
+                "tp": sig.take_profit,
+                "reason": sig.reason,
+                "entry_time": timestamp,
+                "fees": fee,
+                "hold": 0,
                 "direction": "long",
             },
-            "cash": cash - invest, "fees": fee,
+            "cash": cash - invest,
+            "fees": fee,
         }
 
     def _force_close(self, data: pd.DataFrame, pos: dict, total_fees: float, cash: float) -> dict:
@@ -452,16 +551,24 @@ class BacktestEngine:
 
         return {
             "trade": TradeRecord(
-                symbol=self.symbol, side="SELL" if is_short else "BUY",
-                entry_time=pos["entry_time"] or ts, exit_time=ts,
-                entry_price=pos["entry_px"], exit_price=exec_px,
+                symbol=self.symbol,
+                side="SELL" if is_short else "BUY",
+                entry_time=pos["entry_time"] or ts,
+                exit_time=ts,
+                entry_price=pos["entry_px"],
+                exit_price=exec_px,
                 quantity=abs(pos["qty"]),
-                fees=pos["fees"] + fee, pnl=pnl,
+                fees=pos["fees"] + fee,
+                pnl=pnl,
                 pnl_pct=pnl / entry_notional if entry_notional > 0 else 0.0,
-                reason_entry=pos["reason"], reason_exit="End of backtest (forced close)",
-                status="closed", hold_bars=pos["hold"],
-                stop_loss=pos["stop"], take_profit=pos["tp"],
+                reason_entry=pos["reason"],
+                reason_exit="End of backtest (forced close)",
+                status="closed",
+                hold_bars=pos["hold"],
+                stop_loss=pos["stop"],
+                take_profit=pos["tp"],
                 direction=pos.get("direction", "long"),
             ),
-            "cash": cash - cost if is_short else net, "fees": fee,
+            "cash": cash - cost if is_short else net,
+            "fees": fee,
         }

@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 
 import pandas as pd
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class MarketCondition:
@@ -88,7 +86,11 @@ def _volume_profile(frame: pd.DataFrame) -> str:
     if "volume" not in frame.columns:
         return "unknown"
     vol_ma = frame["volume"].rolling(20).mean()
-    vol_ratio = float((frame["volume"] / vol_ma.replace(0, float("nan"))).iloc[-1]) if len(vol_ma) > 0 else 1.0
+    vol_ratio = (
+        float((frame["volume"] / vol_ma.replace(0, float("nan"))).iloc[-1])
+        if len(vol_ma) > 0
+        else 1.0
+    )
     if vol_ratio > 1.5:
         return "high"
     if vol_ratio > 1.0:
@@ -96,13 +98,17 @@ def _volume_profile(frame: pd.DataFrame) -> str:
     return "normal"
 
 
-def _summary_parts(trend: str, vol_cond: str, rsi_cond: str, last_rsi: float, ret: float, vol_profile: str) -> list[str]:
+def _summary_parts(
+    trend: str, vol_cond: str, rsi_cond: str, last_rsi: float, ret: float, vol_profile: str
+) -> list[str]:
     """Compose sentence fragments for the condition summary."""
     trend_label = "Uptrend" if "up" in trend else "Downtrend" if "down" in trend else "Sideways"
     parts = [f"{trend_label} with {vol_cond} volatility"]
     if rsi_cond != "neutral":
         parts.append(f"RSI suggests {rsi_cond} ({last_rsi:.0f})")
-    parts.append(f"positive return of {ret:+.2f}%" if ret > 0 else f"negative return of {ret:+.2f}%")
+    parts.append(
+        f"positive return of {ret:+.2f}%" if ret > 0 else f"negative return of {ret:+.2f}%"
+    )
     if vol_profile == "high":
         parts.append("elevated volume")
     return parts
@@ -194,7 +200,9 @@ def format_summary(summary: MarketSummary) -> str:
     lines = []
     lines.append(f"=== Market Summary: {summary.symbol} ({summary.period}) ===")
     lines.append(f"Period: {summary.start_date} → {summary.end_date}")
-    lines.append(f"Price: ${summary.open_price} → ${summary.close_price} ({summary.return_pct:+.2f}%)")
+    lines.append(
+        f"Price: ${summary.open_price} → ${summary.close_price} ({summary.return_pct:+.2f}%)"
+    )
     lines.append(f"Range: ${summary.low_price} - ${summary.high_price}")
     lines.append(f"Volatility: {summary.volatility_pct:.2f}%")
     lines.append(f"Avg Volume: {summary.avg_volume:.0f}")

@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import logging
-
 import streamlit as st
+from loguru import logger
 
 from app.config import load_settings
 from app.dashboard.helpers import get_current_price
@@ -24,8 +23,6 @@ from app.prospecting.db import (
 from app.prospecting.ranking import generate_ranking
 from app.prospecting.scoring import get_recommendation
 from app.prospecting.screener import ProspectScreener
-
-logger = logging.getLogger(__name__)
 
 
 def _run_screener() -> None:
@@ -180,7 +177,8 @@ def render() -> None:
             _render_add_form(conn)
         with col2:
             status_filter = st.selectbox(
-                "Filter", ["all", "watching", "active", "archived", "rejected"],
+                "Filter",
+                ["all", "watching", "active", "archived", "rejected"],
                 label_visibility="collapsed",
             )
         with col3:
@@ -191,7 +189,11 @@ def render() -> None:
         _render_screener_controls()
 
         # Fetch prospects
-        prospects = get_all_prospects(conn) if status_filter == "all" else get_prospects_by_status(conn, status_filter)
+        prospects = (
+            get_all_prospects(conn)
+            if status_filter == "all"
+            else get_prospects_by_status(conn, status_filter)
+        )
         if not prospects:
             st.info("No prospects yet. Add a symbol above to get started.")
             return
@@ -214,23 +216,29 @@ def render() -> None:
                 trend_1d = rank.trend_1d or "-"
                 # Format price and return
                 price_str = f"${rank.price:,.2f}" if rank.price is not None else "-"
-                return_str = f"{rank.return_pct_1d:+.2f}%" if rank.return_pct_1d is not None else "-"
+                return_str = (
+                    f"{rank.return_pct_1d:+.2f}%" if rank.return_pct_1d is not None else "-"
+                )
                 # Signals count from prospect (we don't have it in ranking, so we fetch from prospect)
-                prospect = next((p for p in prospects if p.symbol == rank.symbol and p.interval == "1d"), None)
+                prospect = next(
+                    (p for p in prospects if p.symbol == rank.symbol and p.interval == "1d"), None
+                )
                 signals = prospect.signals_count if prospect else 0
-                ranking_rows.append({
-                    "Rank": idx,
-                    "Symbol": rank.symbol,
-                    "Score": f"{rank.score:.2f}",
-                    "Recommendation": rank.recommendation,
-                    "Reason": rank.reason,
-                    "Price": price_str,
-                    "Retorno 1d": return_str,
-                    "Tendencia 1h": trend_1h,
-                    "Tendencia 4h": trend_4h,
-                    "Tendencia 1d": trend_1d,
-                    "Señales": signals,
-                })
+                ranking_rows.append(
+                    {
+                        "Rank": idx,
+                        "Symbol": rank.symbol,
+                        "Score": f"{rank.score:.2f}",
+                        "Recommendation": rank.recommendation,
+                        "Reason": rank.reason,
+                        "Price": price_str,
+                        "Retorno 1d": return_str,
+                        "Tendencia 1h": trend_1h,
+                        "Tendencia 4h": trend_4h,
+                        "Tendencia 1d": trend_1d,
+                        "Señales": signals,
+                    }
+                )
             st.dataframe(
                 ranking_rows,
                 use_container_width=True,
@@ -273,7 +281,8 @@ def render() -> None:
 
         # Filter prospects that are INVERTIR and approved by decision engine
         executable_prospects = [
-            p for p in prospects
+            p
+            for p in prospects
             if decisions.get(p.symbol)
             and decisions[p.symbol].approved
             and decisions[p.symbol].action == "PAPER_BUY"
@@ -284,8 +293,7 @@ def render() -> None:
         else:
             # Let user select a prospect
             prospect_options = {
-                f"{p.symbol} - Score: {p.score:.2f}": p
-                for p in executable_prospects
+                f"{p.symbol} - Score: {p.score:.2f}": p for p in executable_prospects
             }
             selected_label = st.selectbox(
                 "Selecciona un prospecto para operar",
@@ -326,7 +334,9 @@ def render() -> None:
                                 # Fetch current price for execution
                                 price = get_current_price(conn, selected_prospect.symbol)
                                 if price is None or price <= 0:
-                                    st.error("No se pudo obtener el precio actual para ejecutar la operación.")
+                                    st.error(
+                                        "No se pudo obtener el precio actual para ejecutar la operación."
+                                    )
                                 else:
                                     quantity = amount_input / price
                                     # Record trade
@@ -372,5 +382,3 @@ def render() -> None:
         logger.exception("Error rendering prospects page")
         st.error("Error loading prospects page.")
         st.stop()
-
-

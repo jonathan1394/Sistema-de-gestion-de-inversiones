@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import logging
-
 import pandas as pd
 
 from app.strategies.base_strategy import BaseStrategy, Signal, StrategyResult
 
-logger = logging.getLogger(__name__)
 
 class RebalanceStrategy(BaseStrategy):
     """Buy or sell to restore the asset to its target weight within a threshold."""
@@ -35,18 +32,20 @@ class RebalanceStrategy(BaseStrategy):
             if len(rebalance_idx) > 0:
                 idx = rebalance_idx[0]
                 price = df.loc[idx, "close"]
-                signals.append(Signal(
-                    symbol=symbol,
-                    timestamp=pd.Timestamp(idx),
-                    price=price,
-                    action="BUY",
-                    reason="Initial position for rebalance strategy",
-                    confidence=self.confidence,
-                    risk_score=self.risk_score,
-                    position_size_pct=target_pct,
-                    stop_loss=price * (1 - self.stop_loss_pct),
-                    take_profit=price * (1 + self.take_profit_pct),
-                ))
+                signals.append(
+                    Signal(
+                        symbol=symbol,
+                        timestamp=pd.Timestamp(idx),
+                        price=price,
+                        action="BUY",
+                        reason="Initial position for rebalance strategy",
+                        confidence=self.confidence,
+                        risk_score=self.risk_score,
+                        position_size_pct=target_pct,
+                        stop_loss=price * (1 - self.stop_loss_pct),
+                        take_profit=price * (1 + self.take_profit_pct),
+                    )
+                )
             return StrategyResult(signals=signals)
 
         current_weight = self.parameters["current_weight"]
@@ -58,17 +57,19 @@ class RebalanceStrategy(BaseStrategy):
 
             for idx in rebalance_idx:
                 price = df.loc[idx, "close"]
-                signals.append(Signal(
-                    symbol=symbol,
-                    timestamp=pd.Timestamp(idx),
-                    price=price,
-                    action=action,
-                    reason=f"Rebalance: weight {current_weight:.1%} vs target {target_pct:.1%}",
-                    confidence=self.confidence,
-                    risk_score=self.risk_score,
-                    position_size_pct=rebalance_size,
-                    stop_loss=price * (1 - self.stop_loss_pct) if action == "BUY" else None,
-                    take_profit=price * (1 + self.take_profit_pct) if action == "BUY" else None,
-                ))
+                signals.append(
+                    Signal(
+                        symbol=symbol,
+                        timestamp=pd.Timestamp(idx),
+                        price=price,
+                        action=action,
+                        reason=f"Rebalance: weight {current_weight:.1%} vs target {target_pct:.1%}",
+                        confidence=self.confidence,
+                        risk_score=self.risk_score,
+                        position_size_pct=rebalance_size,
+                        stop_loss=price * (1 - self.stop_loss_pct) if action == "BUY" else None,
+                        take_profit=price * (1 + self.take_profit_pct) if action == "BUY" else None,
+                    )
+                )
 
         return StrategyResult(signals=signals)

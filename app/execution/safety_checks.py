@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import Optional
 
 from app.config import AppConfig
 from app.execution.binance_executor import BinanceExecutor
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class SafetyResult:
@@ -88,7 +86,7 @@ def check_order_size(
         return SafetyResult(
             safe=False,
             reason=f"Order value ${order_value:.2f} exceeds max ${max_position_value:.2f} "
-                   f"({max_position_pct:.1%} of capital)",
+            f"({max_position_pct:.1%} of capital)",
         )
 
     return SafetyResult(safe=True)

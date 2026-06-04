@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 import pandas as pd
@@ -18,8 +17,6 @@ from app.strategies import (
     RSIStrategy,
     TrendFollowing,
 )
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/backtest", tags=["backtest"])
 
@@ -118,8 +115,7 @@ def run_backtest(request: Request, payload: dict[str, Any] = Body(...)) -> dict[
         for t in result.trades
     ]
     equity = [
-        {"timestamp": str(ts), "equity": float(val)}
-        for ts, val in result.equity_curve.items()
+        {"timestamp": str(ts), "equity": float(val)} for ts, val in result.equity_curve.items()
     ]
 
     return {

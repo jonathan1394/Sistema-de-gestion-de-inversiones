@@ -6,20 +6,20 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY app ./app
-COPY scripts ./scripts
-COPY settings.yaml ./settings.yaml
-COPY pyproject.toml ./pyproject.toml
-COPY quality ./quality
+# Install project + extras
+COPY pyproject.toml ./
+COPY app/ ./app/
+COPY scripts/ ./scripts/
+COPY quality/ ./quality/
 COPY alembic.ini ./alembic.ini
-COPY alembic ./alembic
+COPY alembic/ ./alembic/
+RUN pip install --no-cache-dir -e ".[dashboard,backtesting,api]"
 
+# Runtime config
+COPY settings.yaml ./settings.yaml
 RUN mkdir -p /data
 
 EXPOSE 8501

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
 import subprocess
 import sys
@@ -14,8 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 import requests
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 HISTORY_FILE = Path("data/alert_history.jsonl")
 
@@ -44,7 +42,9 @@ class AlertChannel(ABC):
 class ConsoleChannel(AlertChannel):
     def send(self, alert: Alert) -> bool:
         """Print formatted alert to stderr."""
-        color = {"INFO": "", "WARNING": "\033[93m", "ERROR": "\033[91m", "TRADE": "\033[92m"}.get(alert.level, "")
+        color = {"INFO": "", "WARNING": "\033[93m", "ERROR": "\033[91m", "TRADE": "\033[92m"}.get(
+            alert.level, ""
+        )
         reset = "\033[0m" if color else ""
         icon = {"INFO": "ℹ", "WARNING": "⚠", "ERROR": "✖", "TRADE": "💰"}.get(alert.level, "○")
         line = f"{color}{icon} [{alert.timestamp}] [{alert.category}] {alert.title}: {alert.message}{reset}"
@@ -65,7 +65,11 @@ class DesktopChannel(AlertChannel):
                 return True
             elif sys.platform == "darwin":
                 subprocess.run(
-                    ["osascript", "-e", f'display notification "{alert.message}" with title "CriptoLab — {alert.title}"'],
+                    [
+                        "osascript",
+                        "-e",
+                        f'display notification "{alert.message}" with title "CriptoLab — {alert.title}"',
+                    ],
                     timeout=5,
                     capture_output=True,
                 )
@@ -85,12 +89,11 @@ class TelegramChannel(AlertChannel):
     def send(self, alert: Alert) -> bool:
         """Send alert message to configured Telegram chat."""
         try:
-            icon = {"INFO": "ℹ️", "WARNING": "⚠️", "ERROR": "❌", "TRADE": "💰"}.get(alert.level, "🔔")
+            icon = {"INFO": "ℹ️", "WARNING": "⚠️", "ERROR": "❌", "TRADE": "💰"}.get(
+                alert.level, "🔔"
+            )
             text = (
-                f"{icon} *CriptoLab Alert*\n"
-                f"*{alert.title}*\n"
-                f"{alert.message}\n"
-                f"`{alert.timestamp}`"
+                f"{icon} *CriptoLab Alert*\n*{alert.title}*\n{alert.message}\n`{alert.timestamp}`"
             )
             resp = requests.post(
                 self._api_url,
@@ -105,7 +108,7 @@ class TelegramChannel(AlertChannel):
     def send_document(self, document_path: str, caption: str = "") -> bool:
         """Send a document to the configured Telegram chat."""
         try:
-            with open(document_path, 'rb') as doc:
+            with open(document_path, "rb") as doc:
                 url = f"https://api.telegram.org/bot{self._token}/sendDocument"
                 resp = requests.post(
                     url,
@@ -131,14 +134,19 @@ class AlertManager:
         """Persist and dispatch alert to all channels."""
         HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
         with HISTORY_FILE.open("a") as f:
-            f.write(json.dumps({
-                "timestamp": alert.timestamp,
-                "level": alert.level,
-                "category": alert.category,
-                "title": alert.title,
-                "message": alert.message,
-                "data": alert.data,
-            }) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "timestamp": alert.timestamp,
+                        "level": alert.level,
+                        "category": alert.category,
+                        "title": alert.title,
+                        "message": alert.message,
+                        "data": alert.data,
+                    }
+                )
+                + "\n"
+            )
 
         results = [ch.send(alert) for ch in self._channels]
         return any(results)

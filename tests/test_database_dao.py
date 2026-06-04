@@ -31,7 +31,9 @@ def dao(db_path: Path) -> DataAccessObject:
 class TestConnectionScope:
     def test_commit_on_success(self, db_path: Path):
         with connection_scope(db_path) as conn:
-            conn.execute("INSERT INTO paper_snapshots (timestamp, total_value, cash) VALUES ('t', 100, 50)")
+            conn.execute(
+                "INSERT INTO paper_snapshots (timestamp, total_value, cash) VALUES ('t', 100, 50)"
+            )
         with get_connection(db_path) as conn:
             rows = conn.execute("SELECT COUNT(*) as cnt FROM paper_snapshots").fetchall()
             assert rows[0]["cnt"] == 1
@@ -39,7 +41,9 @@ class TestConnectionScope:
     def test_rollback_on_error(self, db_path: Path):
         try:
             with connection_scope(db_path) as conn:
-                conn.execute("INSERT INTO paper_snapshots (timestamp, total_value, cash) VALUES ('t', 100, 50)")
+                conn.execute(
+                    "INSERT INTO paper_snapshots (timestamp, total_value, cash) VALUES ('t', 100, 50)"
+                )
                 raise ValueError("simulated error")
         except ValueError:
             pass
@@ -56,8 +60,32 @@ class TestConnectionScope:
 class TestDataAccessObject:
     def test_store_and_get_candles(self, dao: DataAccessObject):
         klines = [
-            [1609459200000, 100.0, 101.0, 99.0, 100.5, 1000, 1609459260000, 50000, 100, 20000, 25000],
-            [1609459260000, 101.0, 102.0, 100.0, 101.5, 1200, 1609459320000, 55000, 110, 22000, 28000],
+            [
+                1609459200000,
+                100.0,
+                101.0,
+                99.0,
+                100.5,
+                1000,
+                1609459260000,
+                50000,
+                100,
+                20000,
+                25000,
+            ],
+            [
+                1609459260000,
+                101.0,
+                102.0,
+                100.0,
+                101.5,
+                1200,
+                1609459320000,
+                55000,
+                110,
+                22000,
+                28000,
+            ],
         ]
         count = dao.store_klines("BTCUSDT", "1m", klines)
         assert count == 2
@@ -71,7 +99,9 @@ class TestDataAccessObject:
         klines = []
         for i in range(1500):
             base = 1609459200000 + i * 60000
-            klines.append([base, 100.0, 101.0, 99.0, 100.5, 1000, base + 60000, 50000, 100, 20000, 25000])
+            klines.append(
+                [base, 100.0, 101.0, 99.0, 100.5, 1000, base + 60000, 50000, 100, 20000, 25000]
+            )
         count = dao.store_klines_chunked("ETHUSDT", "1m", klines, chunk_size=500)
         assert count == 1500
 
@@ -82,7 +112,9 @@ class TestDataAccessObject:
         klines = []
         for i in range(10):
             base = 1609459200000 + i * 60000
-            klines.append([base, 100.0 + i, 101.0, 99.0, 100.5, 1000, base + 60000, 50000, 100, 20000, 25000])
+            klines.append(
+                [base, 100.0 + i, 101.0, 99.0, 100.5, 1000, base + 60000, 50000, 100, 20000, 25000]
+            )
         dao.store_klines("BTCUSDT", "1h", klines)
 
         candles = dao.get_candles(CandlesFilter(symbol="BTCUSDT", interval="1h", limit=3))

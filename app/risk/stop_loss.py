@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class StopLossResult:
@@ -26,24 +24,36 @@ def fixed_percentage(
     """Build a stop-loss from a fixed percentage distance from entry."""
     if stop_loss_pct < min_stop_pct:
         return StopLossResult(
-            stop_price=0, distance_pct=0, method="fixed_pct",
+            stop_price=0,
+            distance_pct=0,
+            method="fixed_pct",
             rejected=True,
             rejection_reason=f"Stop {stop_loss_pct:.1%} below minimum {min_stop_pct:.1%}",
         )
     if stop_loss_pct > max_stop_pct:
         return StopLossResult(
-            stop_price=0, distance_pct=0, method="fixed_pct",
+            stop_price=0,
+            distance_pct=0,
+            method="fixed_pct",
             rejected=True,
             rejection_reason=f"Stop {stop_loss_pct:.1%} exceeds maximum {max_stop_pct:.1%}",
         )
 
     if direction == "long":
         stop_price = entry_price * (1 - stop_loss_pct)
+        stop_price = round(stop_price, 6)
+        if stop_price >= entry_price:
+            stop_price = entry_price * (1 - min_stop_pct)
+            stop_price = round(stop_price, 6)
     else:
         stop_price = entry_price * (1 + stop_loss_pct)
+        stop_price = round(stop_price, 6)
+        if stop_price <= entry_price:
+            stop_price = entry_price * (1 + min_stop_pct)
+            stop_price = round(stop_price, 6)
 
     return StopLossResult(
-        stop_price=round(stop_price, 2),
+        stop_price=stop_price,
         distance_pct=stop_loss_pct,
         method="fixed_pct",
     )
@@ -60,8 +70,11 @@ def atr_based(
     """Build a stop-loss based on ATR distance clamped by min/max bounds."""
     if atr_value <= 0:
         return StopLossResult(
-            stop_price=0, distance_pct=0, method="atr",
-            rejected=True, rejection_reason="ATR must be positive",
+            stop_price=0,
+            distance_pct=0,
+            method="atr",
+            rejected=True,
+            rejection_reason="ATR must be positive",
         )
 
     distance = atr_value * atr_multiplier
@@ -76,11 +89,19 @@ def atr_based(
 
     if direction == "long":
         stop_price = entry_price - distance
+        stop_price = round(max(stop_price, 0), 6)
+        if stop_price >= entry_price:
+            stop_price = entry_price - entry_price * min_stop_pct
+            stop_price = round(max(stop_price, 0), 6)
     else:
         stop_price = entry_price + distance
+        stop_price = round(stop_price, 6)
+        if stop_price <= entry_price:
+            stop_price = entry_price + entry_price * min_stop_pct
+            stop_price = round(stop_price, 6)
 
     return StopLossResult(
-        stop_price=round(max(stop_price, 0), 2),
+        stop_price=stop_price,
         distance_pct=distance_pct,
         method="atr",
     )
@@ -97,8 +118,11 @@ def take_profit_dynamic(
     """Calculate a dynamic take-profit based on ATR distance clamped by min/max bounds."""
     if atr_value <= 0:
         return StopLossResult(
-            stop_price=0, distance_pct=0, method="atr_tp",
-            rejected=True, rejection_reason="ATR must be positive",
+            stop_price=0,
+            distance_pct=0,
+            method="atr_tp",
+            rejected=True,
+            rejection_reason="ATR must be positive",
         )
 
     distance = atr_value * atr_multiplier
@@ -113,11 +137,19 @@ def take_profit_dynamic(
 
     if direction == "long":
         tp_price = entry_price + distance
+        tp_price = round(tp_price, 6)
+        if tp_price <= entry_price:
+            tp_price = entry_price + entry_price * min_tp_pct
+            tp_price = round(tp_price, 6)
     else:
         tp_price = entry_price - distance
+        tp_price = round(max(tp_price, 0), 6)
+        if tp_price >= entry_price:
+            tp_price = entry_price - entry_price * min_tp_pct
+            tp_price = round(max(tp_price, 0), 6)
 
     return StopLossResult(
-        stop_price=round(max(tp_price, 0), 2),
+        stop_price=tp_price,
         distance_pct=distance_pct,
         method="atr_tp",
     )

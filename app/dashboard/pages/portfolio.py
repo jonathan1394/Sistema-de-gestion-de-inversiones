@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timezone
 
 import pandas as pd
 import streamlit as st
+from loguru import logger
 
 from app.config import load_settings
 from app.dashboard.portfolio_state import add_snapshot, get_portfolio_value, update_portfolio_prices
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
-
-logger = logging.getLogger(__name__)
 
 
 def _load_prices(conn) -> dict[str, float]:
@@ -27,9 +25,17 @@ def _load_prices(conn) -> dict[str, float]:
 
 
 def _portfolio_metrics(total_value: float) -> tuple[float, float, float, float]:
-    exposure = (total_value - st.session_state.portfolio_cash) / total_value * 100 if total_value > 0 else 0
+    exposure = (
+        (total_value - st.session_state.portfolio_cash) / total_value * 100
+        if total_value > 0
+        else 0
+    )
     total_pnl = total_value - st.session_state.portfolio_capital
-    total_pnl_pct = (total_value - st.session_state.portfolio_capital) / st.session_state.portfolio_capital * 100  # noqa: E501
+    total_pnl_pct = (
+        (total_value - st.session_state.portfolio_capital)
+        / st.session_state.portfolio_capital
+        * 100
+    )  # noqa: E501
     if total_value > st.session_state.portfolio_peak:
         st.session_state.portfolio_peak = total_value
     drawdown = (

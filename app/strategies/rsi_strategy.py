@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import logging
-
 import pandas as pd
 
 from app.strategies.base_strategy import BaseStrategy, Signal, StrategyResult
 
-logger = logging.getLogger(__name__)
 
 def compute_rsi(series: pd.Series, period: int = 14) -> pd.Series:
     """Compute Relative Strength Index for a price series."""
@@ -52,26 +49,30 @@ class RSIStrategy(BaseStrategy):
         signals: list[Signal] = []
         for idx in buy_idx:
             price = df.loc[idx, "close"]
-            signals.append(Signal(
-                symbol=symbol,
-                timestamp=pd.Timestamp(idx),
-                price=price,
-                action="BUY",
-                reason=f"RSI crossed above {oversold} (oversold)",
-                confidence=self.confidence,
-                risk_score=self.risk_score,
-                stop_loss=price * (1 - self.stop_loss_pct),
-                take_profit=price * (1 + self.take_profit_pct),
-            ))
+            signals.append(
+                Signal(
+                    symbol=symbol,
+                    timestamp=pd.Timestamp(idx),
+                    price=price,
+                    action="BUY",
+                    reason=f"RSI crossed above {oversold} (oversold)",
+                    confidence=self.confidence,
+                    risk_score=self.risk_score,
+                    stop_loss=price * (1 - self.stop_loss_pct),
+                    take_profit=price * (1 + self.take_profit_pct),
+                )
+            )
         for idx in sell_idx:
-            signals.append(Signal(
-                symbol=symbol,
-                timestamp=pd.Timestamp(idx),
-                price=df.loc[idx, "close"],
-                action="SELL",
-                reason=f"RSI crossed below {overbought} (overbought)",
-                confidence=self.confidence,
-                risk_score=self.risk_score,
-            ))
+            signals.append(
+                Signal(
+                    symbol=symbol,
+                    timestamp=pd.Timestamp(idx),
+                    price=df.loc[idx, "close"],
+                    action="SELL",
+                    reason=f"RSI crossed below {overbought} (overbought)",
+                    confidence=self.confidence,
+                    risk_score=self.risk_score,
+                )
+            )
 
         return StrategyResult(signals=signals)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from fastapi import APIRouter, Body, Query, Request
@@ -19,7 +18,6 @@ from app.prospecting.db import (
 from app.prospecting.ranking import generate_ranking
 from app.prospecting.screener import ProspectScreener
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/prospecting", tags=["prospecting"])
 
 
@@ -128,7 +126,12 @@ def set_status(request: Request, payload: dict[str, Any] = Body(...)) -> dict[st
     interval = str(payload.get("interval", "1d"))
     new_status = str(payload.get("status", "watching"))
     update_prospect_status(conn, symbol, interval, new_status)
-    return {"status": "ok", "data": {"symbol": symbol, "interval": interval, "status": new_status}, "error": None, "meta": {}}
+    return {
+        "status": "ok",
+        "data": {"symbol": symbol, "interval": interval, "status": new_status},
+        "error": None,
+        "meta": {},
+    }
 
 
 @router.post("/prospects/add")

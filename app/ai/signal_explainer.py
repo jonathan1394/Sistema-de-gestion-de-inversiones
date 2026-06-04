@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import Callable, Optional
 
@@ -10,7 +9,6 @@ import pandas as pd
 
 from app.strategies.base_strategy import Signal
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class SignalExplanation:
@@ -23,7 +21,9 @@ class SignalExplanation:
     risk_note: str
 
 
-def _action_explanation(signal: Signal, data: Optional[pd.DataFrame], context: dict[str, float]) -> tuple[str, str]:
+def _action_explanation(
+    signal: Signal, data: Optional[pd.DataFrame], context: dict[str, float]
+) -> tuple[str, str]:
     """Build action-specific explanation text and base strength."""
     action_map: dict[str, tuple[str, str] | Callable] = {
         "BUY": lambda: _explain_buy(signal, data, context),

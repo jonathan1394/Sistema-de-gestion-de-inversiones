@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import logging
 import sqlite3
 import time
 from datetime import datetime, timezone
 
 import pandas as pd
+from loguru import logger
 
 from app.alerts import (
     HISTORY_FILE,
@@ -24,8 +24,6 @@ from app.database.connection import get_connection
 from app.logging_setup import setup_logging
 from app.strategies.base_strategy import Signal
 from app.strategies.moving_average import MovingAverageCrossover
-
-logger = logging.getLogger(__name__)
 
 
 def _load_alerts_config() -> dict:
@@ -46,9 +44,7 @@ def _get_current_drawdown(conn: sqlite3.Connection) -> float:
     latest_value = float(latest_row[0])
 
     # Get maximum total_value (peak)
-    peak_row = conn.execute(
-        "SELECT MAX(total_value) FROM paper_snapshots"
-    ).fetchone()
+    peak_row = conn.execute("SELECT MAX(total_value) FROM paper_snapshots").fetchone()
     if not peak_row:
         return 0.0
     peak_value = float(peak_row[0])
@@ -68,14 +64,16 @@ def _get_signals(symbol: str, conn) -> list[Signal]:
     candles = get_candles(conn, symbol, "4h", limit=200, desc=True)
     if len(candles) < 50:
         return []
-    data = pd.DataFrame({
-        "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
-        "open": [c.open for c in candles],
-        "high": [c.high for c in candles],
-        "low": [c.low for c in candles],
-        "close": [c.close for c in candles],
-        "volume": [c.volume for c in candles],
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
+            "open": [c.open for c in candles],
+            "high": [c.high for c in candles],
+            "low": [c.low for c in candles],
+            "close": [c.close for c in candles],
+            "volume": [c.volume for c in candles],
+        }
+    )
     strat = MovingAverageCrossover(parameters={"symbol": symbol})
     result = strat.generate_signals(data)
     return result.signals
@@ -116,21 +114,27 @@ def cmd_monitor(args: argparse.Namespace) -> None:
     for symbol in symbols:
         cfg = alerts_config.get("rules", {})
         if cfg.get("price", {}).get("enabled", True):
-            engine.add_rule(price_alert_rule(
-                symbol=symbol,
-                current_price_fn=lambda s=symbol: _get_latest_price(s, conn),
-            ))
+            engine.add_rule(
+                price_alert_rule(
+                    symbol=symbol,
+                    current_price_fn=lambda s=symbol: _get_latest_price(s, conn),
+                )
+            )
         if cfg.get("signal", {}).get("enabled", True):
-            engine.add_rule(signal_alert_rule(
-                symbol=symbol,
-                signals_fn=lambda s=symbol: _get_signals(s, conn),
-            ))
+            engine.add_rule(
+                signal_alert_rule(
+                    symbol=symbol,
+                    signals_fn=lambda s=symbol: _get_signals(s, conn),
+                )
+            )
         if cfg.get("risk", {}).get("enabled", True):
-            engine.add_rule(risk_alert_rule(
-                symbol="PORTFOLIO",  # We are monitoring overall portfolio drawdown
-                drawdown_fn=lambda: _get_current_drawdown(conn),
-                max_drawdown=cfg.get("risk", {}).get("max_drawdown_pct", 20.0),
-            ))
+            engine.add_rule(
+                risk_alert_rule(
+                    symbol="PORTFOLIO",  # We are monitoring overall portfolio drawdown
+                    drawdown_fn=lambda: _get_current_drawdown(conn),
+                    max_drawdown=cfg.get("risk", {}).get("max_drawdown_pct", 20.0),
+                )
+            )
 
     engine.add_rule(_daily_summary_rule(alerts_config))
 
@@ -174,7 +178,9 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command", required=True)
 
     mon = sub.add_parser("monitor", help="Run continuous alert monitoring")
-    mon.add_argument("--symbols", nargs="+", default=None, help="Symbols to monitor (default: BTCUSDT)")
+    mon.add_argument(
+        "--symbols", nargs="+", default=None, help="Symbols to monitor (default: BTCUSDT)"
+    )
 
     hist = sub.add_parser("history", help="View alert history")
     hist.add_argument("--limit", type=int, default=20, help="Number of entries to show")

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 from pathlib import Path
 
 import pandas as pd
+from loguru import logger
 
 from app.backtesting.comparator import (
     DEFAULT_STRATEGIES,
@@ -16,8 +16,6 @@ from app.config import load_settings
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
 from app.logging_setup import setup_logging
-
-logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -43,15 +41,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--export-json", type=Path, default=None, help="Export ranking to JSON file"
     )
-    parser.add_argument(
-        "--export-csv", type=Path, default=None, help="Export ranking to CSV file"
-    )
-    parser.add_argument(
-        "--settings", default="settings.yaml", help="Path to settings YAML"
-    )
-    parser.add_argument(
-        "--w-sharpe", type=float, default=1.5, help="Weight for Sharpe in scoring"
-    )
+    parser.add_argument("--export-csv", type=Path, default=None, help="Export ranking to CSV file")
+    parser.add_argument("--settings", default="settings.yaml", help="Path to settings YAML")
+    parser.add_argument("--w-sharpe", type=float, default=1.5, help="Weight for Sharpe in scoring")
     parser.add_argument(
         "--w-drawdown", type=float, default=2.0, help="Weight for drawdown in scoring"
     )
@@ -77,14 +69,16 @@ def load_data(
     if not candles or len(candles) < 50:
         return None
 
-    return pd.DataFrame({
-        "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
-        "open": [c.open for c in candles],
-        "high": [c.high for c in candles],
-        "low": [c.low for c in candles],
-        "close": [c.close for c in candles],
-        "volume": [c.volume for c in candles],
-    })
+    return pd.DataFrame(
+        {
+            "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
+            "open": [c.open for c in candles],
+            "high": [c.high for c in candles],
+            "low": [c.low for c in candles],
+            "close": [c.close for c in candles],
+            "volume": [c.volume for c in candles],
+        }
+    )
 
 
 def main() -> None:

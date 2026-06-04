@@ -6,7 +6,6 @@ considering kill switch, mode, risk limits, and logs the decision.
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import Optional
 
@@ -19,7 +18,6 @@ from app.prospecting.scoring import get_recommendation
 from app.risk.exposure_limits import PortfolioState
 from app.risk.risk_manager import RiskManager, TradeProposal
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class InvestmentDecision:
@@ -55,7 +53,9 @@ def _get_current_price(connection, symbol: str) -> Optional[float]:
     """Fetch the latest close price for symbol from candles (any interval)."""
     # Try 1h, 4h, 1d in that order.
     for interval in ("1h", "4h", "1d"):
-        candles = get_candles(connection=connection, symbol=symbol, interval=interval, limit=1, desc=True)
+        candles = get_candles(
+            connection=connection, symbol=symbol, interval=interval, limit=1, desc=True
+        )
         if candles and len(candles) > 0:
             return float(candles[0].close)
     return None
@@ -215,7 +215,9 @@ def evaluate_investment_decision(
         timeframe=interval,  # keep the original interval for logging
         mode=settings.trading.mode,
         approved=risk_decision.approved,
-        reason=risk_decision.rejection_reason if not risk_decision.approved else "Approved by risk manager",
+        reason=risk_decision.rejection_reason
+        if not risk_decision.approved
+        else "Approved by risk manager",
         input_data={
             "symbol": symbol,
             "score": score,

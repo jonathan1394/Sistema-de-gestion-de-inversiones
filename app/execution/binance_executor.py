@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -14,7 +13,6 @@ import requests
 
 from app.config import AppConfig
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class AccountBalance:
@@ -60,10 +58,12 @@ class BinanceExecutor:
         self._api_secret = api_secret
         self._base_url = config.binance.base_url or "https://api.binance.com"
         self._session = requests.Session()
-        self._session.headers.update({
-            "X-MBX-APIKEY": api_key,
-            "Content-Type": "application/x-www-form-urlencoded",
-        })
+        self._session.headers.update(
+            {
+                "X-MBX-APIKEY": api_key,
+                "Content-Type": "application/x-www-form-urlencoded",
+            }
+        )
         self._mode = config.mode
         self._permissions: Optional[PermissionCheck] = None
 
@@ -110,12 +110,14 @@ class BinanceExecutor:
             free = float(bal["free"])
             locked = float(bal["locked"])
             if free > 0 or locked > 0:
-                balances.append(AccountBalance(
-                    asset=bal["asset"],
-                    free=free,
-                    locked=locked,
-                    total=free + locked,
-                ))
+                balances.append(
+                    AccountBalance(
+                        asset=bal["asset"],
+                        free=free,
+                        locked=locked,
+                        total=free + locked,
+                    )
+                )
         return balances
 
     def get_open_orders(self, symbol: str = "") -> list[OrderInfo]:
@@ -128,10 +130,13 @@ class BinanceExecutor:
 
     def get_order_history(self, symbol: str, limit: int = 50) -> list[OrderInfo]:
         """Fetch historical orders for a symbol."""
-        result = self._signed_get("/api/v3/allOrders", {
-            "symbol": symbol.upper(),
-            "limit": min(limit, 1000),
-        })
+        result = self._signed_get(
+            "/api/v3/allOrders",
+            {
+                "symbol": symbol.upper(),
+                "limit": min(limit, 1000),
+            },
+        )
         return [self._parse_order(o) for o in result]
 
     def get_server_time(self) -> int:
@@ -199,7 +204,8 @@ class BinanceExecutor:
         for attempt in range(self._config.binance.max_retries + 1):
             try:
                 resp = self._session.request(
-                    method, url,
+                    method,
+                    url,
                     timeout=self._config.binance.request_timeout_seconds,
                     **kwargs,
                 )

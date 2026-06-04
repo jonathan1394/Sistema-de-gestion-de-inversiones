@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -10,7 +9,6 @@ from typing import Any
 
 from app.database.migrations import run_migrations
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class StoredTrade:
@@ -143,9 +141,7 @@ def remove_position(
     symbol: str,
 ) -> bool:
     """Delete one position by symbol and return success flag."""
-    cursor = connection.execute(
-        "DELETE FROM paper_portfolio WHERE symbol = ?", (symbol.upper(),)
-    )
+    cursor = connection.execute("DELETE FROM paper_portfolio WHERE symbol = ?", (symbol.upper(),))
     connection.commit()
     return cursor.rowcount > 0
 

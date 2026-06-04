@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-import logging
-
 import pandas as pd
 import streamlit as st
+from loguru import logger
 
 from app.ai.market_summary import generate_market_summary
 from app.config import load_settings
+from app.dashboard.helpers import compute_confluence
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
 from app.prospecting.db import add_prospect, get_prospect
-
-logger = logging.getLogger(__name__)
 
 
 def analyze_timeframe(conn, symbol: str, interval: str) -> dict | None:
@@ -28,14 +26,16 @@ def analyze_timeframe(conn, symbol: str, interval: str) -> dict | None:
     if not candles or len(candles) < 50:
         return None
 
-    data = pd.DataFrame({
-        "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
-        "open": [c.open for c in candles],
-        "high": [c.high for c in candles],
-        "low": [c.low for c in candles],
-        "close": [c.close for c in candles],
-        "volume": [c.volume for c in candles],
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
+            "open": [c.open for c in candles],
+            "high": [c.high for c in candles],
+            "low": [c.low for c in candles],
+            "close": [c.close for c in candles],
+            "volume": [c.volume for c in candles],
+        }
+    )
 
     try:
         summary = generate_market_summary(data, symbol=symbol, period=interval)
@@ -55,19 +55,6 @@ def analyze_timeframe(conn, symbol: str, interval: str) -> dict | None:
         "key_levels": summary.key_levels,
         "volatility_pct": summary.volatility_pct,
     }
-
-
-TREND_ORDER = {"strong_up": 5, "up": 4, "sideways": 3, "down": 2, "strong_down": 1}
-
-
-def compute_confluence(results: list[dict]) -> int:
-    """Return number of bullish trends across timeframe results."""
-    bullish = 0
-    for r in results:
-        t = r.get("trend", "sideways")
-        if TREND_ORDER.get(t, 3) >= 4:
-            bullish += 1
-    return bullish
 
 
 TREND_COLORS = {
@@ -118,7 +105,9 @@ def _render_key_levels(results: list[dict]) -> None:
     st.divider()
     st.subheader("Key Levels by Timeframe")
     for r in results:
-        with st.expander(f"{r['interval']} - {r['summary_text']}", expanded=(r["interval"] == "4h")):
+        with st.expander(
+            f"{r['interval']} - {r['summary_text']}", expanded=(r["interval"] == "4h")
+        ):
             kl = r["key_levels"]
             kcol1, kcol2, kcol3, kcol4 = st.columns(4)
             kcol1.metric("Soporte", f"${kl.get('support', 0):,.2f}")
@@ -130,7 +119,10 @@ def _render_key_levels(results: list[dict]) -> None:
 def render() -> None:
     """Render market analysis inputs, tables, and key levels."""
     st.markdown('<div class="page-title">Market Analysis</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-subtitle">Analisis multi-timeframe para detectar tendencia, confluencia y niveles clave.</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="page-subtitle">Analisis multi-timeframe para detectar tendencia, confluencia y niveles clave.</div>',
+        unsafe_allow_html=True,
+    )
 
     try:
         config = load_settings()
@@ -146,7 +138,9 @@ def render() -> None:
         # Check if symbol is in prospects and get score
         prospect = get_prospect(conn, symbol) if symbol else None
         if prospect:
-            st.caption(f"Este símbolo está en tu lista de prospectos con score {prospect.score:.4f} y estado {prospect.status}.")
+            st.caption(
+                f"Este símbolo está en tu lista de prospectos con score {prospect.score:.4f} y estado {prospect.status}."
+            )
         else:
             st.caption("Este símbolo no está en tu lista de prospectos. Puedes agregarlo abajo.")
 
@@ -166,7 +160,9 @@ def render() -> None:
         st.divider()
 
         # Run analysis
-        results = [r for tf in ["1h", "4h", "1d"] if (r := analyze_timeframe(conn, symbol, tf)) is not None]
+        results = [
+            r for tf in ["1h", "4h", "1d"] if (r := analyze_timeframe(conn, symbol, tf)) is not None
+        ]
         if not results:
             st.warning(f"No data available for {symbol}. Download historical data first.")
             return
@@ -191,6 +187,7 @@ def render() -> None:
                 try:
                     from app.data.binance_client import BinanceClient
                     from app.prospecting.screener import ProspectScreener
+
                     weights = config.prospecting.get("scoring_weights")
                     client = BinanceClient(config.binance)
                     screener = ProspectScreener(
@@ -203,7 +200,9 @@ def render() -> None:
                         st.success(f"Screener completado. Score: {result.score.total:.4f}")
                         st.rerun()
                     else:
-                        st.warning(f"No se pudo analizar {symbol}. Verifique que haya suficientes datos.")
+                        st.warning(
+                            f"No se pudo analizar {symbol}. Verifique que haya suficientes datos."
+                        )
                 except Exception as e:
                     st.error(f"Error al ejecutar screener: {e}")
                     logger.exception("Error running screener for %s", symbol)

@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import json
-import logging
 
 import pandas as pd
 import streamlit as st
+from loguru import logger
 
 from app.alerts import AlertManager
 from app.config import load_settings
-
-logger = logging.getLogger(__name__)
 
 
 def render() -> None:
@@ -22,9 +20,13 @@ def render() -> None:
 
         col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
-            level_filter = st.selectbox("Filtrar por nivel", ["ALL", "INFO", "WARNING", "ERROR", "TRADE", "SUMMARY"])
+            level_filter = st.selectbox(
+                "Filtrar por nivel", ["ALL", "INFO", "WARNING", "ERROR", "TRADE", "SUMMARY"]
+            )
         with col2:
-            category_filter = st.selectbox("Filtrar por categoría", ["ALL", "PRICE", "SIGNAL", "RISK", "SUMMARY", "SYSTEM"])
+            category_filter = st.selectbox(
+                "Filtrar por categoría", ["ALL", "PRICE", "SIGNAL", "RISK", "SUMMARY", "SYSTEM"]
+            )
         with col3:
             if st.button("🗑️ Limpiar", use_container_width=True):
                 AlertManager().clear_history()
@@ -45,7 +47,12 @@ def render() -> None:
             df.columns = ["Timestamp", "Nivel", "Categoría", "Título", "Mensaje"]
 
             def _color_row(row):
-                level_colors = {"INFO": "", "WARNING": "background-color: #fff3cd", "ERROR": "background-color: #f8d7da", "TRADE": "background-color: #d4edda"}
+                level_colors = {
+                    "INFO": "",
+                    "WARNING": "background-color: #fff3cd",
+                    "ERROR": "background-color: #f8d7da",
+                    "TRADE": "background-color: #d4edda",
+                }
                 return [level_colors.get(row["Nivel"], "")] * len(row)
 
             st.dataframe(df, use_container_width=True, height=400, hide_index=True)

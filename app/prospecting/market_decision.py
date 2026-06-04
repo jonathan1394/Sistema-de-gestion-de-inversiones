@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import logging
-
 import pandas as pd
 
 from app.ai.market_summary import generate_market_summary
 from app.data.market_data import get_candles
 
-logger = logging.getLogger(__name__)
 
 def analyze_timeframe(conn, symbol: str, interval: str) -> dict | None:
     """Build summary metrics for one timeframe if data is sufficient."""
@@ -23,14 +20,16 @@ def analyze_timeframe(conn, symbol: str, interval: str) -> dict | None:
     if not candles or len(candles) < 50:
         return None
 
-    data = pd.DataFrame({
-        "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
-        "open": [c.open for c in candles],
-        "high": [c.high for c in candles],
-        "low": [c.low for c in candles],
-        "close": [c.close for c in candles],
-        "volume": [c.volume for c in candles],
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
+            "open": [c.open for c in candles],
+            "high": [c.high for c in candles],
+            "low": [c.low for c in candles],
+            "close": [c.close for c in candles],
+            "volume": [c.volume for c in candles],
+        }
+    )
 
     try:
         summary = generate_market_summary(data, symbol=symbol, period=interval)

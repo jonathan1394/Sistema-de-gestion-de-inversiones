@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 import time
 from pathlib import Path
 
 import pandas as pd
+from loguru import logger
 
 from app.config import load_settings
 from app.data.market_data import get_candles
@@ -24,8 +24,6 @@ from app.strategies import (
 )
 from app.strategies.base_strategy import Signal
 
-logger = logging.getLogger(__name__)
-
 BAR_PROGRESS_EVERY = 500
 
 
@@ -33,14 +31,20 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run paper trading simulation on historical data")
     parser.add_argument("--symbol", default="BTCUSDT", help="Trading pair")
     parser.add_argument("--interval", default="4h", help="Candle interval")
-    parser.add_argument("--strategy", required=True, choices=["ma", "rsi", "trend", "dca", "rebalance"],
-                        help="Strategy to trade")
+    parser.add_argument(
+        "--strategy",
+        required=True,
+        choices=["ma", "rsi", "trend", "dca", "rebalance"],
+        help="Strategy to trade",
+    )
     parser.add_argument("--capital", type=float, default=1000.0, help="Starting capital")
     parser.add_argument("--start-ms", type=int, default=None, help="Start time in ms")
     parser.add_argument("--end-ms", type=int, default=None, help="End time in ms")
     parser.add_argument("--limit", type=int, default=None, help="Max candles to load")
     parser.add_argument("--settings", default="settings.yaml", help="Path to settings YAML")
-    parser.add_argument("--export-trades", type=Path, default=None, help="Export trades to JSON file")
+    parser.add_argument(
+        "--export-trades", type=Path, default=None, help="Export trades to JSON file"
+    )
     return parser.parse_args()
 
 
@@ -98,7 +102,12 @@ def _run_simulation(
             pct = (i + 1) / len(data) * 100
             logger.info(
                 "  [%5.1f%%] bar %d/%d | value: $%.2f | trades: %d | dd: %.1f%%",
-                pct, i + 1, len(data), status['total_value'], status['trades_executed'], status['drawdown_pct'],
+                pct,
+                i + 1,
+                len(data),
+                status["total_value"],
+                status["trades_executed"],
+                status["drawdown_pct"],
             )
 
     return time.time() - start_time
@@ -111,9 +120,9 @@ def _print_results(
     elapsed: float,
 ) -> None:
     status = simulator.get_status()
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"Paper Trading Results - {args.strategy.upper()} on {args.symbol} {args.interval}")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
     print(f"Period:     {data['timestamp'].iloc[0].date()} -> {data['timestamp'].iloc[-1].date()}")
     print(f"Duration:   {len(data)} bars ({elapsed:.1f}s simulation)")
     print(f"Capital:    ${args.capital:.2f} -> ${status['total_value']:.2f}")
@@ -163,7 +172,12 @@ def main() -> None:
         raise RuntimeError(f"Not enough data ({len(candles)} candles). Download first.")
 
     data = _to_dataframe(candles)
-    logger.info("Loaded %d candles (%s -> %s)", len(data), data['timestamp'].iloc[0].date(), data['timestamp'].iloc[-1].date())
+    logger.info(
+        "Loaded %d candles (%s -> %s)",
+        len(data),
+        data["timestamp"].iloc[0].date(),
+        data["timestamp"].iloc[-1].date(),
+    )
 
     strategy = _build_strategy(args.strategy, args.symbol)
 

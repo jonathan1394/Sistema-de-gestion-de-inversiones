@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
-
-logger = logging.getLogger(__name__)
 
 _Direction = str  # "long" | "short"
 
@@ -64,16 +61,12 @@ class VirtualPortfolio:
 
     @property
     def total_value(self) -> float:
-        tv = self._cash + sum(
-            p.quantity * p.current_price for p in self._positions.values()
-        )
+        tv = self._cash + sum(p.quantity * p.current_price for p in self._positions.values())
         return tv
 
     @property
     def gross_exposure(self) -> float:
-        return sum(
-            abs(p.quantity * p.current_price) for p in self._positions.values()
-        )
+        return sum(abs(p.quantity * p.current_price) for p in self._positions.values())
 
     @property
     def exposure_pct(self) -> float:
@@ -134,7 +127,9 @@ class VirtualPortfolio:
 
         self._daily_pnl = self.total_value - self._daily_start_value
 
-    def buy(self, symbol: str, quantity: float, price: float, timestamp: Optional[datetime] = None) -> bool:
+    def buy(
+        self, symbol: str, quantity: float, price: float, timestamp: Optional[datetime] = None
+    ) -> bool:
         cost = quantity * price
         if cost > self._cash:
             return False
@@ -160,17 +155,21 @@ class VirtualPortfolio:
                 direction="long",
             )
 
-        self._trade_history.append({
-            "type": "buy",
-            "symbol": symbol,
-            "quantity": quantity,
-            "price": price,
-            "cost": cost,
-            "timestamp": now.isoformat(),
-        })
+        self._trade_history.append(
+            {
+                "type": "buy",
+                "symbol": symbol,
+                "quantity": quantity,
+                "price": price,
+                "cost": cost,
+                "timestamp": now.isoformat(),
+            }
+        )
         return True
 
-    def sell(self, symbol: str, quantity: float, price: float, timestamp: Optional[datetime] = None) -> Optional[float]:
+    def sell(
+        self, symbol: str, quantity: float, price: float, timestamp: Optional[datetime] = None
+    ) -> Optional[float]:
         if symbol not in self._positions:
             return None
 
@@ -187,18 +186,22 @@ class VirtualPortfolio:
         if pos.quantity <= 0:
             del self._positions[symbol]
 
-        self._trade_history.append({
-            "type": "sell",
-            "symbol": symbol,
-            "quantity": sell_qty,
-            "price": price,
-            "proceeds": proceeds,
-            "realized_pnl": realized_pnl,
-            "timestamp": now.isoformat(),
-        })
+        self._trade_history.append(
+            {
+                "type": "sell",
+                "symbol": symbol,
+                "quantity": sell_qty,
+                "price": price,
+                "proceeds": proceeds,
+                "realized_pnl": realized_pnl,
+                "timestamp": now.isoformat(),
+            }
+        )
         return realized_pnl
 
-    def short_sell(self, symbol: str, quantity: float, price: float, timestamp: Optional[datetime] = None) -> bool:
+    def short_sell(
+        self, symbol: str, quantity: float, price: float, timestamp: Optional[datetime] = None
+    ) -> bool:
         """Open a short position. ``quantity`` is the number of units sold short (positive)."""
         if quantity <= 0:
             return False
@@ -213,7 +216,9 @@ class VirtualPortfolio:
             total_qty = existing.quantity - quantity
             total_cost_basis = existing.quantity * existing.entry_price
             existing.quantity = total_qty
-            existing.entry_price = total_cost_basis / (total_qty + quantity) if total_qty != 0 else price
+            existing.entry_price = (
+                total_cost_basis / (total_qty + quantity) if total_qty != 0 else price
+            )
             existing.current_price = price
             if total_qty == 0:
                 del self._positions[symbol]
@@ -227,17 +232,21 @@ class VirtualPortfolio:
                 direction="short",
             )
 
-        self._trade_history.append({
-            "type": "short_sell",
-            "symbol": symbol,
-            "quantity": quantity,
-            "price": price,
-            "proceeds": proceeds,
-            "timestamp": now.isoformat(),
-        })
+        self._trade_history.append(
+            {
+                "type": "short_sell",
+                "symbol": symbol,
+                "quantity": quantity,
+                "price": price,
+                "proceeds": proceeds,
+                "timestamp": now.isoformat(),
+            }
+        )
         return True
 
-    def cover_short(self, symbol: str, quantity: float, price: float, timestamp: Optional[datetime] = None) -> Optional[float]:
+    def cover_short(
+        self, symbol: str, quantity: float, price: float, timestamp: Optional[datetime] = None
+    ) -> Optional[float]:
         """Cover (buy back) ``quantity`` units of a short position. Returns realized PnL."""
         if symbol not in self._positions:
             return None
@@ -255,15 +264,17 @@ class VirtualPortfolio:
         if pos.quantity >= 0:
             del self._positions[symbol]
 
-        self._trade_history.append({
-            "type": "cover_short",
-            "symbol": symbol,
-            "quantity": cover_qty,
-            "price": price,
-            "cost": cost,
-            "realized_pnl": realized_pnl,
-            "timestamp": now.isoformat(),
-        })
+        self._trade_history.append(
+            {
+                "type": "cover_short",
+                "symbol": symbol,
+                "quantity": cover_qty,
+                "price": price,
+                "cost": cost,
+                "realized_pnl": realized_pnl,
+                "timestamp": now.isoformat(),
+            }
+        )
         return realized_pnl
 
     def close_position(self, symbol: str, price: float) -> Optional[float]:

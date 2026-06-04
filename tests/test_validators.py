@@ -1,4 +1,3 @@
-
 from quality.validators.code_validator import CodeValidator
 from quality.validators.doc_validator import DocValidator
 from quality.validators.security_validator import SecurityValidator

@@ -67,7 +67,11 @@ def test_weighted_scores_prioritize_sharpe_and_drawdown(tmp_path):
     _write_metrics(m2, sharpe=1.1, drawdown=-6, profit_factor=1.5, roi=8, win_rate=55, trades=95)
     _write_metrics(m3, sharpe=0.9, drawdown=-4, profit_factor=2.0, roi=11, win_rate=60, trades=100)
 
-    snaps = [load_snapshot(str(m1), "B1"), load_snapshot(str(m2), "B2"), load_snapshot(str(m3), "B3")]
+    snaps = [
+        load_snapshot(str(m1), "B1"),
+        load_snapshot(str(m2), "B2"),
+        load_snapshot(str(m3), "B3"),
+    ]
     scores = _compute_weighted_scores(snaps, w_sharpe=2.0, w_drawdown=2.0, w_profit_factor=1.0)
 
     assert len(scores) == 3

@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import json
-import logging
 import sqlite3
 import time
 from dataclasses import dataclass
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class Prospect:
@@ -41,7 +39,9 @@ def _row_to_prospect(row: sqlite3.Row) -> Prospect:
         volume_profile=row["volume_profile"],
         rsi_condition=row["rsi_condition"],
         signals_count=row["signals_count"],
-        metadata=json.loads(row["metadata"]) if isinstance(row["metadata"], str) else (row["metadata"] or {}),
+        metadata=json.loads(row["metadata"])
+        if isinstance(row["metadata"], str)
+        else (row["metadata"] or {}),
         notes=row["notes"] or "",
     )
 
@@ -83,9 +83,7 @@ def get_prospect(
 
 def get_all_prospects(connection: sqlite3.Connection) -> list[Prospect]:
     """Fetch all prospects sorted by score and symbol."""
-    rows = connection.execute(
-        "SELECT * FROM prospects ORDER BY score DESC, symbol ASC"
-    ).fetchall()
+    rows = connection.execute("SELECT * FROM prospects ORDER BY score DESC, symbol ASC").fetchall()
     return [_row_to_prospect(r) for r in rows]
 
 
@@ -129,7 +127,18 @@ def update_prospect_analysis(
             metadata = ?
         WHERE symbol = ? AND interval = ?
         """,
-        (now, score, trend, volatility, volume_profile, rsi_condition, signals_count, meta_json, symbol.upper(), interval),
+        (
+            now,
+            score,
+            trend,
+            volatility,
+            volume_profile,
+            rsi_condition,
+            signals_count,
+            meta_json,
+            symbol.upper(),
+            interval,
+        ),
     )
     connection.commit()
 

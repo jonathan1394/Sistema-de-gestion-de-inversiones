@@ -39,7 +39,9 @@ def db() -> sqlite3.Connection:
         )
         """
     )
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_prospects_status_score ON prospects (status, score DESC)")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_prospects_status_score ON prospects (status, score DESC)"
+    )
     conn.commit()
     return conn
 
@@ -79,7 +81,9 @@ class TestProspectDB:
     def test_update_analysis(self, db: sqlite3.Connection):
         add_prospect(db, "BTCUSDT", "1d")
         update_prospect_analysis(
-            db, "BTCUSDT", "1d",
+            db,
+            "BTCUSDT",
+            "1d",
             score=0.85,
             trend="strong_up",
             volatility="moderate",

@@ -13,11 +13,12 @@ Generates a comprehensive daily report including:
 from __future__ import annotations
 
 import json
-import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from loguru import logger
 
 from app.config import load_settings
 from app.data.market_data import get_candles
@@ -27,8 +28,6 @@ from app.paper_trading.storage import get_all_positions, get_trades
 from app.prospecting.db import get_all_prospects
 from app.prospecting.market_decision import analyze_timeframe, compute_confluence
 from app.prospecting.ranking import AssetRanking, generate_ranking
-
-logger = logging.getLogger(__name__)
 
 
 def _get_latest_price(conn, symbol: str) -> Optional[float]:
@@ -85,11 +84,19 @@ def _get_portfolio_summary(conn) -> Dict[str, Any]:
                 "quantity": pos.quantity,
                 "entry_price": pos.entry_price,
                 "current_price": _get_latest_price(conn, pos.symbol) or pos.current_price,
-                "unrealized_pnl": (_get_latest_price(conn, pos.symbol) or pos.current_price - pos.entry_price) * pos.quantity,
-                "unrealized_pnl_pct": ((_get_latest_price(conn, pos.symbol) or pos.current_price) / pos.entry_price - 1) * 100 if pos.entry_price > 0 else 0.0,
+                "unrealized_pnl": (
+                    _get_latest_price(conn, pos.symbol) or pos.current_price - pos.entry_price
+                )
+                * pos.quantity,
+                "unrealized_pnl_pct": (
+                    (_get_latest_price(conn, pos.symbol) or pos.current_price) / pos.entry_price - 1
+                )
+                * 100
+                if pos.entry_price > 0
+                else 0.0,
             }
             for pos in positions
-        ]
+        ],
     }
 
 
@@ -145,7 +152,9 @@ def _get_recent_decisions(limit: int = 20) -> List[Dict[str, Any]]:
         {
             "decision_id": d.decision_id,
             "timestamp": d.timestamp,
-            "datetime": datetime.fromtimestamp(int(d.timestamp) / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+            "datetime": datetime.fromtimestamp(int(d.timestamp) / 1000, tz=timezone.utc).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
             "type": d.decision_type,
             "symbol": d.symbol,
             "strategy": d.strategy_name,
@@ -168,14 +177,16 @@ def _get_active_signals() -> List[Dict[str, Any]]:
     signals = []
     for prospect in prospects:
         if prospect.score >= 0.6:  # High score threshold
-            signals.append({
-                "symbol": prospect.symbol,
-                "score": prospect.score,
-                "trend": prospect.trend,
-                "volume": prospect.volume_profile,
-                "rsi": prospect.rsi_condition,
-                "signals_count": prospect.signals_count,
-            })
+            signals.append(
+                {
+                    "symbol": prospect.symbol,
+                    "score": prospect.score,
+                    "trend": prospect.trend,
+                    "volume": prospect.volume_profile,
+                    "rsi": prospect.rsi_condition,
+                    "signals_count": prospect.signals_count,
+                }
+            )
 
     # Sort by score descending
     signals.sort(key=lambda x: x["score"], reverse=True)
@@ -183,9 +194,7 @@ def _get_active_signals() -> List[Dict[str, Any]]:
 
 
 def _generate_action_suggestions(
-    rankings: List[AssetRanking],
-    portfolio: Dict[str, Any],
-    signals: List[Dict[str, Any]]
+    rankings: List[AssetRanking], portfolio: Dict[str, Any], signals: List[Dict[str, Any]]
 ) -> List[str]:
     """Generate action suggestions based on analysis."""
     suggestions = []
@@ -202,16 +211,12 @@ def _generate_action_suggestions(
     # Check for assets to watch
     watch_list = [r for r in rankings if r.recommendation == "VIGILAR"]
     if watch_list:
-        suggestions.append(
-            f"🟡 VIGILAR: {len(watch_list)} activos en espera de confirmación"
-        )
+        suggestions.append(f"🟡 VIGILAR: {len(watch_list)} activos en espera de confirmación")
 
     # Check for assets to avoid
     avoid_list = [r for r in rankings if r.recommendation == "EVITAR"]
     if avoid_list:
-        suggestions.append(
-            f"🔴 EVITAR: {len(avoid_list)} activos muestran señales débiles"
-        )
+        suggestions.append(f"🔴 EVITAR: {len(avoid_list)} activos muestran señales débiles")
 
     # Portfolio-based suggestions
     if portfolio["total_pnl_pct"] < -5:
@@ -235,7 +240,9 @@ def _generate_action_suggestions(
         )
 
     if not suggestions:
-        suggestions.append("📊 MANTENER: Condiciones de mercado mixtas, espera mejores oportunidades")
+        suggestions.append(
+            "📊 MANTENER: Condiciones de mercado mixtas, espera mejores oportunidades"
+        )
 
     return suggestions
 
@@ -246,7 +253,11 @@ def generate_daily_report() -> Dict[str, Any]:
     conn = get_connection(settings.database.path)
 
     # Get main assets from settings or default to major pairs
-    main_assets = getattr(settings.symbols, '__root__', settings.symbols) if hasattr(settings, 'symbols') else ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+    main_assets = (
+        getattr(settings.symbols, "__root__", settings.symbols)
+        if hasattr(settings, "symbols")
+        else ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+    )
 
     # Generate report components
     rankings = _get_top_rankings(limit=20)
@@ -292,7 +303,9 @@ def generate_daily_report() -> Dict[str, Any]:
     return report
 
 
-def _save_report_to_files(report: Dict[str, Any], base_name: str = "daily_report") -> Dict[str, str]:
+def _save_report_to_files(
+    report: Dict[str, Any], base_name: str = "daily_report"
+) -> Dict[str, str]:
     """Save report to JSON and Markdown files."""
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     filename_base = f"{base_name}_{timestamp}"
@@ -311,24 +324,20 @@ def _save_report_to_files(report: Dict[str, Any], base_name: str = "daily_report
     with open(md_path, "w", encoding="utf-8") as f:
         f.write(md_content)
 
-    return {
-        "json": str(json_path),
-        "markdown": str(md_path),
-        "filename_base": filename_base
-    }
+    return {"json": str(json_path), "markdown": str(md_path), "filename_base": filename_base}
 
 
 def _generate_markdown_report(report: Dict[str, Any]) -> str:
     """Generate a human-readable Markdown report."""
     md = f"""# Reporte Diario de CriptoLab
-**Fecha:** {report['report_date']}
-**Hora:** {report['report_time_utc']}
+**Fecha:** {report["report_date"]}
+**Hora:** {report["report_time_utc"]}
 
 ## Resumen Ejecutivo
-- **Activos analizados:** {report['summary']['total_assets_analyzed']}
-- **Modo de trading:** {'Paper Trading' if report['summary']['paper_trading_enabled'] else 'Solo Análisis'}
-- **Kill Switch:** {'Activado' if report['summary']['kill_switch_active'] else 'Desactivado'}
-- **Régimen de mercado:** {report['summary']['market_regime']}
+- **Activos analizados:** {report["summary"]["total_assets_analyzed"]}
+- **Modo de trading:** {"Paper Trading" if report["summary"]["paper_trading_enabled"] else "Solo Análisis"}
+- **Kill Switch:** {"Activado" if report["summary"]["kill_switch_active"] else "Desactivado"}
+- **Régimen de mercado:** {report["summary"]["market_regime"]}
 
 ## Rankings de Activos (Top 10)
 | Rank | Símbolo | Recomendación | Score | Confluencia | Precio (USDT) | Retorno 1d |
@@ -341,19 +350,21 @@ def _generate_markdown_report(report: Dict[str, Any]) -> str:
 
     md += "\n## Estado de la Carta Paper\n"
     portfolio = report["portfolio"]
-    md += f"""- **Valor total:** ${portfolio['total_value']:,.2f}
-- **Efectivo disponible:** ${portfolio['cash']:,.2f}
-- **Costo total:** ${portfolio['total_cost']:,.2f}
-- **PnL total:** ${portfolio['total_pnl']:,.2f} ({portfolio['total_pnl_pct']:+.2f}%)
-- **Posiciones activas:** {portfolio['positions_count']}
-- **Operaciones recientes:** {portfolio['recent_trades_count']}
+    md += f"""- **Valor total:** ${portfolio["total_value"]:,.2f}
+- **Efectivo disponible:** ${portfolio["cash"]:,.2f}
+- **Costo total:** ${portfolio["total_cost"]:,.2f}
+- **PnL total:** ${portfolio["total_pnl"]:,.2f} ({portfolio["total_pnl_pct"]:+.2f}%)
+- **Posiciones activas:** {portfolio["positions_count"]}
+- **Operaciones recientes:** {portfolio["recent_trades_count"]}
 
 ### Posiciones Actuales
 """
 
     if portfolio["positions"]:
         md += "| Símbolo | Cantidad | Precio Entrada | Precio Actual | PnL No Realizado | PnL % |\n"
-        md += "|---------|----------|----------------|---------------|------------------|--------|\n"
+        md += (
+            "|---------|----------|----------------|---------------|------------------|--------|\n"
+        )
         for pos in portfolio["positions"]:
             md += f"| {pos['symbol']} | {pos['quantity']:.6f} | ${pos['entry_price']:,.2f} | ${pos['current_price']:,.2f} | ${pos['unrealized_pnl']:,.2f} | {pos['unrealized_pnl_pct']:+.2f}% |\n"
     else:
@@ -409,18 +420,13 @@ def main():
         "--output-dir",
         type=str,
         default="./reports/daily",
-        help="Directory to save the report files"
+        help="Directory to save the report files",
     )
     parser.add_argument(
-        "--no-save",
-        action="store_true",
-        help="Only print report to stdout, do not save files"
+        "--no-save", action="store_true", help="Only print report to stdout, do not save files"
     )
     parser.add_argument(
-        "--format",
-        choices=["json", "markdown", "both"],
-        default="both",
-        help="Output format"
+        "--format", choices=["json", "markdown", "both"], default="both", help="Output format"
     )
 
     args = parser.parse_args()
@@ -453,6 +459,7 @@ def main():
             chat_id = os.getenv("TELEGRAM_CHAT_ID") or telegram_cfg.get("chat_id", "")
             if bot_token and chat_id:
                 from app.alerts.channels import TelegramChannel
+
                 telegram = TelegramChannel(bot_token, chat_id)
                 # Send JSON report
                 if saved_files.get("json"):

@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class TradeAnalysis:
@@ -113,10 +111,14 @@ def _has_revenge_pattern(pnls: list[float], flags: BehaviorFlags) -> None:
     for i in range(1, len(pnls)):
         if pnls[i - 1] < -2.0 and pnls[i] > 0:
             flags.revenge_trading = True
-            flags.details.append(f"Trade {i}: Loss of {pnls[i-1]:.1f}% followed by immediate trade")
+            flags.details.append(
+                f"Trade {i}: Loss of {pnls[i - 1]:.1f}% followed by immediate trade"
+            )
 
 
-def _has_size_increase_after_losses(pnls: list[float], sizes: list[float], flags: BehaviorFlags) -> None:
+def _has_size_increase_after_losses(
+    pnls: list[float], sizes: list[float], flags: BehaviorFlags
+) -> None:
     """Detect martingale-like sizing after losing streaks."""
     losing_streak = 0
     for i, pnl in enumerate(pnls):
@@ -124,7 +126,9 @@ def _has_size_increase_after_losses(pnls: list[float], sizes: list[float], flags
             losing_streak += 1
             if losing_streak >= 3 and i + 1 < len(sizes) and sizes[i + 1] > sizes[i] * 1.2:
                 flags.increasing_size_after_loss = True
-                flags.details.append(f"Increasing position size after {losing_streak} consecutive losses")
+                flags.details.append(
+                    f"Increasing position size after {losing_streak} consecutive losses"
+                )
                 return
             continue
         losing_streak = 0
@@ -139,7 +143,9 @@ def _has_early_closing_pattern(trades_data: list[dict], flags: BehaviorFlags) ->
     very_short = sum(1 for h in hold_times if h < avg_hold * 0.2)
     if very_short > len(hold_times) * 0.3:
         flags.closing_early = True
-        flags.details.append(f"{very_short}/{len(hold_times)} trades held <20% of average hold time")
+        flags.details.append(
+            f"{very_short}/{len(hold_times)} trades held <20% of average hold time"
+        )
 
 
 def analyze_behavior(trades: list[dict]) -> BehaviorFlags:

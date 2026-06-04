@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-import logging
-
 import streamlit as st
+from loguru import logger
 
 from app.config import load_settings
 from app.database.connection import get_connection
 from app.database.migrations import run_migrations
 from app.prospecting.db import get_all_prospects
 from app.prospecting.ranking import AssetRanking, generate_ranking
-
-logger = logging.getLogger(__name__)
 
 
 def _render_header() -> None:
@@ -62,19 +59,23 @@ def render() -> None:
             # Prepare rows for display
             rows = []
             for idx, rank in enumerate(rankings, start=1):
-                rows.append({
-                    "Rank": idx,
-                    "Símbolo": rank.symbol,
-                    "Score": f"{rank.score:.2f}",
-                    "Recomendación": rank.recommendation,
-                    "Confluencia": f"{rank.confluence}/3",
-                    "Precio": f"${rank.price:,.2f}" if rank.price is not None else "-",
-                    "Retorno 1d": f"{rank.return_pct_1d:+.2f}%" if rank.return_pct_1d is not None else "-",
-                    "Tendencia 1h": rank.trend_1h or "-",
-                    "Tendencia 4h": rank.trend_4h or "-",
-                    "Tendencia 1d": rank.trend_1d or "-",
-                    "Motivo": rank.reason,
-                })
+                rows.append(
+                    {
+                        "Rank": idx,
+                        "Símbolo": rank.symbol,
+                        "Score": f"{rank.score:.2f}",
+                        "Recomendación": rank.recommendation,
+                        "Confluencia": f"{rank.confluence}/3",
+                        "Precio": f"${rank.price:,.2f}" if rank.price is not None else "-",
+                        "Retorno 1d": f"{rank.return_pct_1d:+.2f}%"
+                        if rank.return_pct_1d is not None
+                        else "-",
+                        "Tendencia 1h": rank.trend_1h or "-",
+                        "Tendencia 4h": rank.trend_4h or "-",
+                        "Tendencia 1d": rank.trend_1d or "-",
+                        "Motivo": rank.reason,
+                    }
+                )
             st.dataframe(
                 rows,
                 use_container_width=True,
@@ -101,17 +102,19 @@ def render() -> None:
             if prospects:
                 raw_rows = []
                 for p in prospects:
-                    raw_rows.append({
-                        "Símbolo": p.symbol,
-                        "Intervalo": p.interval,
-                        "Score": p.score,
-                        "Tendencia": p.trend or "-",
-                        "Volatilidad": p.volatility or "-",
-                        "Volumen": p.volume_profile or "-",
-                        "RSI": p.rsi_condition or "-",
-                        "Señales": p.signals_count,
-                        "Estado": p.status,
-                    })
+                    raw_rows.append(
+                        {
+                            "Símbolo": p.symbol,
+                            "Intervalo": p.interval,
+                            "Score": p.score,
+                            "Tendencia": p.trend or "-",
+                            "Volatilidad": p.volatility or "-",
+                            "Volumen": p.volume_profile or "-",
+                            "RSI": p.rsi_condition or "-",
+                            "Señales": p.signals_count,
+                            "Estado": p.status,
+                        }
+                    )
                 st.dataframe(raw_rows, use_container_width=True, hide_index=True)
             else:
                 st.write("No prospects.")

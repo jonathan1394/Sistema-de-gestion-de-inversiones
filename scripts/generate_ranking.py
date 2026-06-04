@@ -4,16 +4,15 @@
 from __future__ import annotations
 
 import argparse
-import logging
 from typing import List
+
+from loguru import logger
 
 from app.config import load_settings
 from app.database.connection import get_connection
 from app.logging_setup import setup_logging
 from app.prospecting.db import get_all_prospects
 from app.prospecting.ranking import AssetRanking, generate_ranking
-
-logger = logging.getLogger(__name__)
 
 
 def main() -> None:
@@ -57,7 +56,9 @@ def main() -> None:
 
     print(f"Ranking for {len(symbols)} symbols ({args.interval} interval):")
     print("-" * 80)
-    print(f"{'Rank':<4} {'Symbol':<12} {'Score':<6} {'Confluence':<12} {'Recommendation':<15} {'Price':<12} {'1d Return':<10}")
+    print(
+        f"{'Rank':<4} {'Symbol':<12} {'Score':<6} {'Confluence':<12} {'Recommendation':<15} {'Price':<12} {'1d Return':<10}"
+    )
     print("-" * 80)
     for i, rank in enumerate(rankings[: args.limit], 1):
         return_pct = rank.return_pct_1d or 0.0

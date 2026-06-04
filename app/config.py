@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import functools
-import logging
 import os
 import warnings
 from dataclasses import dataclass, field
@@ -12,7 +11,6 @@ from typing import Any
 
 import yaml
 
-logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class BinanceConfig:
@@ -190,7 +188,8 @@ def load_settings(settings_path: str | Path = "settings.yaml") -> AppConfig:
                 os.getenv("TRADING_REQUIRE_STOP_LOSS"), trading_raw.get("require_stop_loss", True)
             ),
             require_take_profit=_to_bool(
-                os.getenv("TRADING_REQUIRE_TAKE_PROFIT"), trading_raw.get("require_take_profit", False)
+                os.getenv("TRADING_REQUIRE_TAKE_PROFIT"),
+                trading_raw.get("require_take_profit", False),
             ),
         ),
         fees=FeesConfig(

@@ -1,5 +1,7 @@
-"""AI helper exports for summaries, explanations, and journal analysis."""
+"""AI helper exports for summaries, explanations, journal analysis, regime, and volatility."""
 
+from app.ai.candle_patterns import PatternResult, detect_all_patterns
+from app.ai.garch_volatility import GarchResult, fit_garch, forecast_volatility
 from app.ai.journal_analyzer import (
     BehaviorFlags,
     JournalReport,
@@ -10,6 +12,7 @@ from app.ai.journal_analyzer import (
     generate_insight,
     generate_journal_report,
 )
+from app.ai.market_regime import REGIME_LABELS, RegimeResult, classify_regime
 from app.ai.market_summary import (
     MarketCondition,
     MarketSummary,
@@ -34,4 +37,12 @@ __all__ = [
     "analyze_behavior",
     "generate_insight",
     "generate_journal_report",
+    "PatternResult",
+    "detect_all_patterns",
+    "RegimeResult",
+    "REGIME_LABELS",
+    "classify_regime",
+    "GarchResult",
+    "fit_garch",
+    "forecast_volatility",
 ]

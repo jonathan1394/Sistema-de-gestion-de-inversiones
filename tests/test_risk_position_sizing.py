@@ -18,22 +18,16 @@ class TestCalculatePositionSize:
         assert result.risk_amount == 10.0
 
     def test_rejects_zero_capital(self):
-        result = calculate_position_size(
-            capital=0, entry_price=50000, stop_loss=49000
-        )
+        result = calculate_position_size(capital=0, entry_price=50000, stop_loss=49000)
         assert result.rejected
         assert "Capital" in result.rejection_reason
 
     def test_rejects_negative_capital(self):
-        result = calculate_position_size(
-            capital=-100, entry_price=50000, stop_loss=49000
-        )
+        result = calculate_position_size(capital=-100, entry_price=50000, stop_loss=49000)
         assert result.rejected
 
     def test_rejects_zero_entry_price(self):
-        result = calculate_position_size(
-            capital=1000, entry_price=0, stop_loss=49000
-        )
+        result = calculate_position_size(capital=1000, entry_price=0, stop_loss=49000)
         assert result.rejected
         assert "Prices" in result.rejection_reason
 
@@ -74,8 +68,6 @@ class TestCalculatePositionSize:
         assert result.position_value <= 1000 * 0.03
 
     def test_result_fields_are_consistent(self):
-        result = calculate_position_size(
-            capital=1000, entry_price=50000, stop_loss=49000
-        )
+        result = calculate_position_size(capital=1000, entry_price=50000, stop_loss=49000)
         assert result.position_value == round(result.position_value, 2)
         assert result.risk_amount == round(result.risk_amount, 2)

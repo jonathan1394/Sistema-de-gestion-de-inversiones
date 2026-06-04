@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
-import logging
 import sqlite3
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 import pandas as pd
+from loguru import logger
 
 from app.data.market_data import get_candles
 
-logger = logging.getLogger(__name__)
+TREND_ORDER = {"strong_up": 5, "up": 4, "sideways": 3, "down": 2, "strong_down": 1}
+
+
+def compute_confluence(results: list[dict]) -> int:
+    """Count bullish timeframes from analyzed results."""
+    return sum(1 for r in results if TREND_ORDER.get(r.get("trend", "sideways"), 3) >= 4)
 
 
 def candles_to_dataframe(candles: list) -> pd.DataFrame:
@@ -85,10 +90,12 @@ def add_snapshot(session_state: Any) -> None:
 
     dd = (peak - tv) / peak * 100 if peak > 0 else 0.0
     snapshots = getattr(session_state, "portfolio_snapshots", [])
-    snapshots.append({
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "total_value": round(tv, 2),
-        "cash": round(float(getattr(session_state, "portfolio_cash", 0.0)), 2),
-        "drawdown_pct": round(dd, 2),
-    })
+    snapshots.append(
+        {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "total_value": round(tv, 2),
+            "cash": round(float(getattr(session_state, "portfolio_cash", 0.0)), 2),
+            "drawdown_pct": round(dd, 2),
+        }
+    )
     session_state.portfolio_snapshots = snapshots

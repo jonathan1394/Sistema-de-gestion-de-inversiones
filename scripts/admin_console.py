@@ -3,25 +3,26 @@
 
 from __future__ import annotations
 
-import logging
 import subprocess
 import sys
 from typing import Dict, List
 
 from app.logging_setup import setup_logging
 
-logger = logging.getLogger(__name__)
 
 def load_settings():
     """Load settings from the app package."""
     try:
         from app.config import load_settings as load_app_settings
+
         return load_app_settings()
     except ImportError:
         # Fallback for when not run as module
         import os
+
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from app.config import load_settings as load_app_settings
+
         return load_app_settings()
 
 
@@ -31,7 +32,9 @@ def print_header():
     print("=" * 60)
     print("🧪 CriptoLab Administrative Console")
     print("=" * 60)
-    print(f"Mode: {settings.mode} | Kill Switch: {'ACTIVE' if settings.kill_switch else 'INACTIVE'}")
+    print(
+        f"Mode: {settings.mode} | Kill Switch: {'ACTIVE' if settings.kill_switch else 'INACTIVE'}"
+    )
     print("=" * 60)
 
 
@@ -97,88 +100,149 @@ def main_menu():
         elif choice == "2":
             symbol = input("Símbolo para monitorear (default: BTCUSDT): ").strip() or "BTCUSDT"
             interval = input("Intervalo en segundos (default: 30): ").strip() or "30"
-            run_command([
-                sys.executable, "-m", "scripts.alert_monitor",
-                "--symbol", symbol,
-                "--interval", interval
-            ], f"Iniciando monitor de alertas para {symbol}")
+            run_command(
+                [
+                    sys.executable,
+                    "-m",
+                    "scripts.alert_monitor",
+                    "--symbol",
+                    symbol,
+                    "--interval",
+                    interval,
+                ],
+                f"Iniciando monitor de alertas para {symbol}",
+            )
         elif choice == "3":
             limit_input = input("Número de decisiones a mostrar (default: 20): ").strip()
             limit = int(limit_input) if limit_input.isdigit() else 20
-            run_command([
-                sys.executable, "-m", "scripts.view_decisions",
-                "--limit", str(limit)
-            ], "Mostrando registro de decisiones")
+            run_command(
+                [sys.executable, "-m", "scripts.view_decisions", "--limit", str(limit)],
+                "Mostrando registro de decisiones",
+            )
         elif choice == "4":
-            symbols_input = input("Símbolos (coma-separados, default: BTCUSDT,ETHUSDT,SOLUSDT): ").strip()
+            symbols_input = input(
+                "Símbolos (coma-separados, default: BTCUSDT,ETHUSDT,SOLUSDT): "
+            ).strip()
             symbols = symbols_input or "BTCUSDT,ETHUSDT,SOLUSDT"
             interval = input("Intervalo (default: 1h): ").strip() or "1h"
             limit_input = input("Límite (default: 10): ").strip()
             limit = int(limit_input) if limit_input.isdigit() else 10
-            run_command([
-                sys.executable, "-m", "scripts.generate_ranking",
-                "--symbols", symbols,
-                "--interval", interval,
-                "--limit", str(limit)
-            ], "Generando ranking de activos")
+            run_command(
+                [
+                    sys.executable,
+                    "-m",
+                    "scripts.generate_ranking",
+                    "--symbols",
+                    symbols,
+                    "--interval",
+                    interval,
+                    "--limit",
+                    str(limit),
+                ],
+                "Generando ranking de activos",
+            )
         elif choice == "5":
             symbol = input("Símbolo (default: BTCUSDT): ").strip() or "BTCUSDT"
             interval = input("Intervalo (default: 1h): ").strip() or "1h"
             strategy = input("Estrategia (ma/rsi/trend - default: ma): ").strip() or "ma"
             fast = input("Período rápido (default: 20): ").strip() or "20"
             slow = input("Período lento (default: 50): ").strip() or "50"
-            run_command([
-                sys.executable, "-m", "scripts.run_paper_trading",
-                "--symbol", symbol,
-                "--interval", interval,
-                "--strategy", strategy,
-                "--fast", fast,
-                "--slow", slow
-            ], "Ejecutando paper trading")
+            run_command(
+                [
+                    sys.executable,
+                    "-m",
+                    "scripts.run_paper_trading",
+                    "--symbol",
+                    symbol,
+                    "--interval",
+                    interval,
+                    "--strategy",
+                    strategy,
+                    "--fast",
+                    fast,
+                    "--slow",
+                    slow,
+                ],
+                "Ejecutando paper trading",
+            )
         elif choice == "6":
             symbol = input("Símbolo (default: BTCUSDT): ").strip() or "BTCUSDT"
             interval = input("Intervalo (default: 1h): ").strip() or "1h"
             limit_input = input("Límite (default: 1000): ").strip()
             limit = int(limit_input) if limit_input.isdigit() else 1000
-            run_command([
-                sys.executable, "-m", "scripts.download_historical",
-                "--symbol", symbol,
-                "--interval", interval,
-                "--limit", limit
-            ], "Descargando datos históricos")
+            run_command(
+                [
+                    sys.executable,
+                    "-m",
+                    "scripts.download_historical",
+                    "--symbol",
+                    symbol,
+                    "--interval",
+                    interval,
+                    "--limit",
+                    limit,
+                ],
+                "Descargando datos históricos",
+            )
         elif choice == "7":
-            symbols_input = input("Símbolos (coma-separados, default: BTCUSDT,ETHUSDT,SOLUSDT): ").strip()
+            symbols_input = input(
+                "Símbolos (coma-separados, default: BTCUSDT,ETHUSDT,SOLUSDT): "
+            ).strip()
             symbols = symbols_input or "BTCUSDT,ETHUSDT,SOLUSDT"
             interval = input("Intervalo (default: 1d): ").strip() or "1d"
-            run_command([
-                sys.executable, "-m", "scripts.run_prospecting",
-                "--symbols", symbols,
-                "--interval", interval
-            ], "Ejecutando prospecting y scoring")
+            run_command(
+                [
+                    sys.executable,
+                    "-m",
+                    "scripts.run_prospecting",
+                    "--symbols",
+                    symbols,
+                    "--interval",
+                    interval,
+                ],
+                "Ejecutando prospecting y scoring",
+            )
         elif choice == "8":
             print("\nArchivos de métricas disponibles en ./reports/backtests/")
-            files_input = input("Archivos JSON (coma-separados, o dejar vacío para ejemplos): ").strip()
+            files_input = input(
+                "Archivos JSON (coma-separados, o dejar vacío para ejemplos): "
+            ).strip()
             if files_input:
                 files = [f.strip() for f in files_input.split(",")]
                 cmd = [sys.executable, "-m", "scripts.compare_backtests", "--files"] + files
                 run_command(cmd, "Comparando backtests")
             else:
-                print("💡 Ejemplo: python -m scripts.compare_backtests --files ./reports/backtests/btc_1h_ma/metrics.json ./reports/backtests/eth_4h_ma/metrics.json")
+                print(
+                    "💡 Ejemplo: python -m scripts.compare_backtests --files ./reports/backtests/btc_1h_ma/metrics.json ./reports/backtests/eth_4h_ma/metrics.json"
+                )
         elif choice == "9":
             symbols_input = input("Símbolos (coma-separados, default: BTCUSDT,ETHUSDT): ").strip()
             symbols = symbols_input or "BTCUSDT,ETHUSDT"
             intervals_input = input("Intervalos (coma-separados, default: 1h,4h): ").strip()
             intervals = intervals_input or "1h,4h"
-            strategies_input = input("Estrategias (coma-separados, default: ma,rsi,trend): ").strip()
+            strategies_input = input(
+                "Estrategias (coma-separados, default: ma,rsi,trend): "
+            ).strip()
             strategies = strategies_input or "ma,rsi,trend"
-            run_command([
-                sys.executable, "-m", "scripts.compare_strategies",
-                "--symbols", symbols,
-                "--intervals", intervals,
-                "--strategies", strategies
-            ], "Comparando estrategias")
+            run_command(
+                [
+                    sys.executable,
+                    "-m",
+                    "scripts.compare_strategies",
+                    "--symbols",
+                    symbols,
+                    "--intervals",
+                    intervals,
+                    "--strategies",
+                    strategies,
+                ],
+                "Comparando estrategias",
+            )
         elif choice == "10":
-            run_command([sys.executable, "-m", "quality.quality_agent", "--check-all"], "Ejecutando quality gate completo")
+            run_command(
+                [sys.executable, "-m", "quality.quality_agent", "--check-all"],
+                "Ejecutando quality gate completo",
+            )
         elif choice == "11":
             run_command([sys.executable, "-m", "pytest"], "Ejecutando suite de pruebas")
         elif choice == "12":

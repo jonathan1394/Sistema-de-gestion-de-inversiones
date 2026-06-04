@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -10,7 +9,6 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/market", tags=["market"])
 
 
@@ -66,14 +64,23 @@ def price(request: Request, symbol: str, interval: str = Query(default="1h")) ->
     last = rows[-1]
     return {
         "status": "ok",
-        "data": {"symbol": last.symbol, "interval": last.interval, "price": last.close, "ts": last.close_time},
+        "data": {
+            "symbol": last.symbol,
+            "interval": last.interval,
+            "price": last.close,
+            "ts": last.close_time,
+        },
         "error": None,
         "meta": {},
     }
 
 
 @router.get("/summary")
-def summary(request: Request, symbols: str = Query(default="BTCUSDT,ETHUSDT,SOLUSDT"), interval: str = Query(default="1h")) -> dict[str, Any]:
+def summary(
+    request: Request,
+    symbols: str = Query(default="BTCUSDT,ETHUSDT,SOLUSDT"),
+    interval: str = Query(default="1h"),
+) -> dict[str, Any]:
     settings = request.app.state.settings
     conn = get_connection(settings.database.path)
     out: list[dict[str, Any]] = []
@@ -82,5 +89,12 @@ def summary(request: Request, symbols: str = Query(default="BTCUSDT,ETHUSDT,SOLU
         if not rows:
             continue
         last = rows[-1]
-        out.append({"symbol": last.symbol, "interval": last.interval, "price": last.close, "ts": last.close_time})
+        out.append(
+            {
+                "symbol": last.symbol,
+                "interval": last.interval,
+                "price": last.close,
+                "ts": last.close_time,
+            }
+        )
     return {"status": "ok", "data": out, "error": None, "meta": {"count": len(out)}}

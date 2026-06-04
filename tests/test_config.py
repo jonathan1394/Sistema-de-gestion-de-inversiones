@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import warnings
 
-from app.config import load_settings
+from app.config import load_settings, reload_settings
 
 
 def _write_settings(tmp_path, content: str):
@@ -97,3 +97,24 @@ alerts:
         load_settings(settings_path)
 
     assert any("Telegram credentials" in str(item.message) for item in caught)
+
+
+def test_load_settings_cached_same_object(tmp_path):
+    path = _write_settings(
+        tmp_path,
+        "app:\n  mode: analysis\n  kill_switch: false\ndatabase:\n  path: ./data/test.db\n",
+    )
+    s1 = load_settings(path)
+    s2 = load_settings(path)
+    assert s1 is s2
+
+
+def test_reload_settings_returns_fresh_object(tmp_path):
+    path = _write_settings(
+        tmp_path,
+        "app:\n  mode: analysis\n  kill_switch: false\ndatabase:\n  path: ./data/test.db\n",
+    )
+    s1 = load_settings(path)
+    s2 = reload_settings(path)
+    assert s1 is not s2
+    assert s1.mode == s2.mode

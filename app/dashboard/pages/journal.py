@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import json
-import logging
 
 import pandas as pd
 import streamlit as st
+from loguru import logger
 
 from app.ai.journal_analyzer import generate_journal_report
 from app.config import load_settings
@@ -14,13 +14,13 @@ from app.database.connection import get_connection
 from app.database.migrations import run_migrations
 from app.paper_trading.storage import get_trades, init_portfolio_tables
 
-logger = logging.getLogger(__name__)
-
 
 def _render_upload_tab() -> None:
     st.subheader("Upload Trade History")
     st.caption("Upload a JSON file with trade records")
-    uploaded_file = st.file_uploader("Choose a JSON file", type=["json"], label_visibility="collapsed")
+    uploaded_file = st.file_uploader(
+        "Choose a JSON file", type=["json"], label_visibility="collapsed"
+    )
     if uploaded_file is None:
         return
     try:
@@ -57,10 +57,16 @@ def _render_analysis(trades: list) -> None:
 
     st.divider()
     st.subheader("Trade Analysis")
-    trades_df = pd.DataFrame([
-        {"PnL%": f"{t.get('pnl_pct', 0):+.2f}%", "Hold": f"{t.get('hold_bars', 0)} bars", "Reason": t.get("reason_exit", t.get("reason", ""))}
-        for t in trades
-    ])
+    trades_df = pd.DataFrame(
+        [
+            {
+                "PnL%": f"{t.get('pnl_pct', 0):+.2f}%",
+                "Hold": f"{t.get('hold_bars', 0)} bars",
+                "Reason": t.get("reason_exit", t.get("reason", "")),
+            }
+            for t in trades
+        ]
+    )
     if not trades_df.empty:
         st.dataframe(trades_df, use_container_width=True, hide_index=True)
 
@@ -103,14 +109,17 @@ def _render_paper_trades_tab(conn) -> None:
     pnls = [t.pnl_pct for t in stored_trades if t.action == "SELL"]
     if pnls:
         wins = sum(1 for p in pnls if p > 0)
-        st.metric("Closed Trades Win Rate", f"{wins/len(pnls)*100:.1f}%")
+        st.metric("Closed Trades Win Rate", f"{wins / len(pnls) * 100:.1f}%")
 
 
 def render() -> None:
     """Render journal tabs for uploaded JSON and stored paper trades."""
     try:
         st.markdown('<div class="page-title">Trading Journal</div>', unsafe_allow_html=True)
-        st.markdown('<div class="page-subtitle">Analisis de historial de trades para detectar patrones y mejorar ejecucion.</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="page-subtitle">Analisis de historial de trades para detectar patrones y mejorar ejecucion.</div>',
+            unsafe_allow_html=True,
+        )
         config = load_settings()
         conn = get_connection(config.database.path)
         run_migrations(conn)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 
 import numpy as np
@@ -10,7 +9,6 @@ import pandas as pd
 
 from app.backtesting.engine import BacktestResult
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class BacktestMetrics:
@@ -42,9 +40,17 @@ class BacktestMetrics:
 
 
 _BARS_PER_DAY: dict[str, float] = {
-    "1m": 1440, "5m": 288, "15m": 96, "30m": 48,
-    "1h": 24, "2h": 12, "4h": 6, "6h": 4,
-    "8h": 3, "12h": 2, "1d": 1,
+    "1m": 1440,
+    "5m": 288,
+    "15m": 96,
+    "30m": 48,
+    "1h": 24,
+    "2h": 12,
+    "4h": 6,
+    "6h": 4,
+    "8h": 3,
+    "12h": 2,
+    "1d": 1,
 }
 
 
@@ -57,7 +63,11 @@ def _annualization_factor(interval: str) -> float:
 
 
 def _compute_performance_metrics(
-    metrics: BacktestMetrics, equity: pd.Series, interval: str, initial: float, final: float,
+    metrics: BacktestMetrics,
+    equity: pd.Series,
+    interval: str,
+    initial: float,
+    final: float,
 ) -> None:
     days = (equity.index[-1] - equity.index[0]).total_seconds() / 86400.0
     years = days / 365.25
@@ -85,7 +95,12 @@ def _compute_performance_metrics(
 
 
 def _compute_trade_metrics(
-    metrics: BacktestMetrics, trades: list, pnl_pcts: np.ndarray, wins: np.ndarray, losses: np.ndarray, equity: pd.Series,
+    metrics: BacktestMetrics,
+    trades: list,
+    pnl_pcts: np.ndarray,
+    wins: np.ndarray,
+    losses: np.ndarray,
+    equity: pd.Series,
 ) -> None:
     metrics.gross_profit = float(np.sum([t.pnl for t in trades if t.pnl > 0]))
     metrics.gross_loss = float(abs(np.sum([t.pnl for t in trades if t.pnl < 0])))

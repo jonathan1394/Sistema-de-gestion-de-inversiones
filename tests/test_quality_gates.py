@@ -81,9 +81,7 @@ class TestRequiredFilesCheck:
 
     def test_check_required_files_none_missing(self, project_root, sample_rules, tmp_path):
         rules = sample_rules.copy()
-        rules["phases"] = {
-            "phase1_data": {"required_files": ["tmp_test_file.py"]}
-        }
+        rules["phases"] = {"phase1_data": {"required_files": ["tmp_test_file.py"]}}
         (tmp_path / "tmp_test_file.py").touch()
         gate = Phase1Gate(rules, str(tmp_path))
         missing = gate.check_required_files(["tmp_test_file.py"])

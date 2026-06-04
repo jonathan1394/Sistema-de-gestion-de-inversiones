@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import json
-import logging
 from datetime import datetime, timezone
 from typing import List
 
 import pandas as pd
 import streamlit as st
+from loguru import logger
 
 from app.governance.decision_log import DecisionLogEntry, get_recent_decisions
-
-logger = logging.getLogger(__name__)
 
 
 def _read_decisions_from_db(limit: int = 1000) -> List[DecisionLogEntry]:
@@ -37,20 +35,26 @@ def _decisions_to_dataframe(decisions: List[DecisionLogEntry]) -> pd.DataFrame:
             ts = int(d.timestamp) if d.timestamp else 0
         except (TypeError, ValueError):
             ts = 0
-        data.append({
-            "ID": d.decision_id,
-            "Timestamp": d.timestamp,
-            "Datetime": datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S") if ts else "-",
-            "Type": d.decision_type,
-            "Symbol": d.symbol or "-",
-            "Strategy": d.strategy_name or "-",
-            "Timeframe": d.timeframe or "-",
-            "Mode": d.mode,
-            "Approved": "✅" if d.approved else "❌",
-            "Reason": d.reason,
-            "Policy Version": d.policy_version or "-",
-            "Strategy Version": d.strategy_version or "-",
-        })
+        data.append(
+            {
+                "ID": d.decision_id,
+                "Timestamp": d.timestamp,
+                "Datetime": datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+                if ts
+                else "-",
+                "Type": d.decision_type,
+                "Symbol": d.symbol or "-",
+                "Strategy": d.strategy_name or "-",
+                "Timeframe": d.timeframe or "-",
+                "Mode": d.mode,
+                "Approved": "✅" if d.approved else "❌",
+                "Reason": d.reason,
+                "Policy Version": d.policy_version or "-",
+                "Strategy Version": d.strategy_version or "-",
+            }
+        )
     df = pd.DataFrame(data)
     return df
 
@@ -66,7 +70,16 @@ def render() -> None:
         with col1:
             decision_type_filter = st.selectbox(
                 "Filtrar por tipo de decisión",
-                ["ALL", "PAPER_BUY_EVALUATION", "POLICY_CHECK", "RISK_CHECK", "SAFETY_CHECK", "APPROVAL", "EXECUTION", "REJECTION"],
+                [
+                    "ALL",
+                    "PAPER_BUY_EVALUATION",
+                    "POLICY_CHECK",
+                    "RISK_CHECK",
+                    "SAFETY_CHECK",
+                    "APPROVAL",
+                    "EXECUTION",
+                    "REJECTION",
+                ],
             )
         with col2:
             approved_filter = st.selectbox(
@@ -100,7 +113,19 @@ def render() -> None:
         if decisions:
             df = _decisions_to_dataframe(decisions)
             # Reorder columns for better readability
-            column_order = ["Datetime", "Type", "Symbol", "Strategy", "Timeframe", "Mode", "Approved", "Reason", "Policy Version", "Strategy Version", "ID"]
+            column_order = [
+                "Datetime",
+                "Type",
+                "Symbol",
+                "Strategy",
+                "Timeframe",
+                "Mode",
+                "Approved",
+                "Reason",
+                "Policy Version",
+                "Strategy Version",
+                "ID",
+            ]
             df = df[column_order] if all(col in df.columns for col in column_order) else df
             st.dataframe(df, use_container_width=True, height=500, hide_index=True)
             st.caption(f"Mostrando {len(decisions)} decisiones")
@@ -118,22 +143,26 @@ def render() -> None:
                     ts = int(d.timestamp) if d.timestamp else 0
                 except (TypeError, ValueError):
                     ts = 0
-                export_data.append({
-                    "decision_id": d.decision_id,
-                    "decision_type": d.decision_type,
-                    "timestamp": d.timestamp,
-                    "datetime": datetime.fromtimestamp(ts / 1000, tz=timezone.utc).isoformat() if ts else "-",
-                    "symbol": d.symbol,
-                    "strategy_name": d.strategy_name,
-                    "timeframe": d.timeframe,
-                    "mode": d.mode,
-                    "approved": d.approved,
-                    "reason": d.reason,
-                    "input_json": d.input_json,
-                    "output_json": d.output_json,
-                    "policy_version": d.policy_version,
-                    "strategy_version": d.strategy_version,
-                })
+                export_data.append(
+                    {
+                        "decision_id": d.decision_id,
+                        "decision_type": d.decision_type,
+                        "timestamp": d.timestamp,
+                        "datetime": datetime.fromtimestamp(ts / 1000, tz=timezone.utc).isoformat()
+                        if ts
+                        else "-",
+                        "symbol": d.symbol,
+                        "strategy_name": d.strategy_name,
+                        "timeframe": d.timeframe,
+                        "mode": d.mode,
+                        "approved": d.approved,
+                        "reason": d.reason,
+                        "input_json": d.input_json,
+                        "output_json": d.output_json,
+                        "policy_version": d.policy_version,
+                        "strategy_version": d.strategy_version,
+                    }
+                )
             try:
                 json_str = json.dumps(export_data, indent=2, ensure_ascii=False)
             except (TypeError, ValueError):
@@ -155,20 +184,29 @@ def render() -> None:
         with st.form("manual_decision_entry"):
             col_e1, col_e2 = st.columns(2)
             with col_e1:
-                m_type = st.selectbox("Tipo", ["PAPER_BUY_EVALUATION", "POLICY_CHECK", "RISK_CHECK", "TEST"])
+                m_type = st.selectbox(
+                    "Tipo", ["PAPER_BUY_EVALUATION", "POLICY_CHECK", "RISK_CHECK", "TEST"]
+                )
                 m_symbol = st.text_input("Símbolo (opcional)", "BTCUSDT")
-                m_approved = st.selectbox("Aprobado", [True, False], format_func=lambda x: "Sí" if x else "No")
+                m_approved = st.selectbox(
+                    "Aprobado", [True, False], format_func=lambda x: "Sí" if x else "No"
+                )
             with col_e2:
                 m_reason = st.text_input("Motivo", "Decisión de prueba")
-                m_mode = st.selectbox("Modo", ["paper", "real_manual", "real_auto_limited", "analysis", "backtest"])
+                m_mode = st.selectbox(
+                    "Modo", ["paper", "real_manual", "real_auto_limited", "analysis", "backtest"]
+                )
             m_input = st.text_area("Entrada JSON", value='{"test": true}')
             m_output = st.text_area("Salida JSON", value='{"result": "ok"}')
-            submitted = st.form_submit_button("➕ Agregar Decisión de Prueba", use_container_width=True)
+            submitted = st.form_submit_button(
+                "➕ Agregar Decisión de Prueba", use_container_width=True
+            )
             if submitted:
                 try:
                     input_json = json.loads(m_input) if m_input.strip() else {}
                     output_json = json.loads(m_output) if m_output.strip() else {}
                     from app.governance.decision_log import log_decision
+
                     decision_id = log_decision(
                         decision_type=m_type,
                         symbol=m_symbol if m_symbol.strip() else None,

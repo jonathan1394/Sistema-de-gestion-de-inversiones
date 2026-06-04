@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import sqlite3
 from dataclasses import dataclass
 
@@ -15,8 +14,6 @@ from app.paper_trading.virtual_portfolio import VirtualPortfolio
 from app.risk.exposure_limits import PortfolioState
 from app.risk.risk_manager import RiskManager, TradeProposal
 from app.strategies.base_strategy import BaseStrategy, Signal
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass

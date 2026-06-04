@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import json
-import logging
 
 import pandas as pd
 import streamlit as st
+from loguru import logger
 
 from app.backtesting import BacktestEngine, compute_metrics
 from app.backtesting.comparator import compare_strategies
@@ -21,8 +21,6 @@ from app.strategies import (
     RSIStrategy,
     TrendFollowing,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def _strategy_instance(strategy_name: str, symbol: str, params_override: dict | None = None):
@@ -127,8 +125,9 @@ def _render_export_button(result, strategy: str, symbol: str, interval: str) -> 
     )
 
 
-def _run_backtest(conn, symbol: str, interval: str, strategy: str,
-                  params_override: dict | None, capital: float) -> None:
+def _run_backtest(
+    conn, symbol: str, interval: str, strategy: str, params_override: dict | None, capital: float
+) -> None:
     candles = get_candles(connection=conn, symbol=symbol, interval=interval, limit=1000)
     if len(candles) < 50:
         st.warning(f"Solo {len(candles)} velas disponibles. Descarga datos primero.")
@@ -196,17 +195,19 @@ def render_compare_section(conn, symbol: str, interval: str, capital: float) -> 
                 for sr in result.strategy_results:
                     m = sr.metrics
                     roi_mark = "🟢" if m.roi_pct > 0 else "🔴" if m.roi_pct < 0 else "⚪"
-                    rows.append({
-                        "Strategy": sr.strategy_name,
-                        "ROI%": f"{roi_mark} {m.roi_pct:+.2f}%",
-                        "Sharpe": f"{m.sharpe_ratio:.2f}",
-                        "Max DD": f"{m.max_drawdown_pct:.2f}%",
-                        "PF": f"{m.profit_factor:.2f}",
-                        "Win Rate": f"{m.win_rate:.1f}%",
-                        "Trades": m.total_trades,
-                        "Final Cap": f"${m.final_capital:.2f}",
-                        "Valid": "✅" if sr.passed_validation else "⚪",
-                    })
+                    rows.append(
+                        {
+                            "Strategy": sr.strategy_name,
+                            "ROI%": f"{roi_mark} {m.roi_pct:+.2f}%",
+                            "Sharpe": f"{m.sharpe_ratio:.2f}",
+                            "Max DD": f"{m.max_drawdown_pct:.2f}%",
+                            "PF": f"{m.profit_factor:.2f}",
+                            "Win Rate": f"{m.win_rate:.1f}%",
+                            "Trades": m.total_trades,
+                            "Final Cap": f"${m.final_capital:.2f}",
+                            "Valid": "✅" if sr.passed_validation else "⚪",
+                        }
+                    )
 
                 df = pd.DataFrame(rows)
                 st.dataframe(df, use_container_width=True, hide_index=True)
@@ -267,38 +268,53 @@ def render() -> None:
             col_a, col_b = st.columns(2)
             with col_a:
                 fast_default = strat_cfg.get("fast_period", 20)
-                fast = st.number_input("Periodo rápido", min_value=5, max_value=100, value=int(fast_default))
+                fast = st.number_input(
+                    "Periodo rápido", min_value=5, max_value=100, value=int(fast_default)
+                )
                 params_override["fast_period"] = fast
             with col_b:
                 slow_default = strat_cfg.get("slow_period", 50)
-                slow = st.number_input("Periodo lento", min_value=10, max_value=200, value=int(slow_default))
+                slow = st.number_input(
+                    "Periodo lento", min_value=10, max_value=200, value=int(slow_default)
+                )
                 params_override["slow_period"] = slow
         elif strategy == "RSI":
             col_a, col_b, col_c = st.columns(3)
             with col_a:
                 rsi_def = strat_cfg.get("rsi_period", 14)
-                params_override["rsi_period"] = st.number_input("RSI Period", min_value=5, max_value=50, value=int(rsi_def))
+                params_override["rsi_period"] = st.number_input(
+                    "RSI Period", min_value=5, max_value=50, value=int(rsi_def)
+                )
             with col_b:
                 os_def = strat_cfg.get("oversold", 30)
-                params_override["oversold"] = st.number_input("Oversold", min_value=10, max_value=50, value=int(os_def))
+                params_override["oversold"] = st.number_input(
+                    "Oversold", min_value=10, max_value=50, value=int(os_def)
+                )
             with col_c:
                 ob_def = strat_cfg.get("overbought", 70)
-                params_override["overbought"] = st.number_input("Overbought", min_value=50, max_value=90, value=int(ob_def))
+                params_override["overbought"] = st.number_input(
+                    "Overbought", min_value=50, max_value=90, value=int(ob_def)
+                )
         elif strategy in ("Trend Following", "DCA Dinámico", "Rebalanceo"):
             st.caption(f"Parámetros cargados desde settings.yaml → strategies → {cfg_key}")
 
         default_capital = int(load_settings().capital.initial_usdt)
-        capital = st.number_input("Capital inicial", min_value=100, max_value=100000, value=default_capital, step=100)
+        capital = st.number_input(
+            "Capital inicial", min_value=100, max_value=100000, value=default_capital, step=100
+        )
 
         if st.button("🚀 Ejecutar Backtest", type="primary", use_container_width=True):
             with st.spinner("Ejecutando backtest..."):
                 try:
-                    _run_backtest(conn, symbol, interval, strategy, params_override or None, capital)
+                    _run_backtest(
+                        conn, symbol, interval, strategy, params_override or None, capital
+                    )
 
                 except Exception as e:
                     st.error(f"Error ejecutando backtest: {e}")
                     logger.exception("Error running backtest")
                     import traceback
+
                     st.code(traceback.format_exc())
 
         render_compare_section(conn, symbol, interval, capital)

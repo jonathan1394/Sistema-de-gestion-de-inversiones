@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-import logging
-
 import streamlit as st
 
 from app.dashboard.helpers import add_snapshot as _add_snapshot
 from app.dashboard.helpers import get_portfolio_value as _get_portfolio_value
 from app.dashboard.helpers import update_portfolio_prices as _update_portfolio_prices
-
-logger = logging.getLogger(__name__)
 
 
 def get_portfolio_value() -> float:

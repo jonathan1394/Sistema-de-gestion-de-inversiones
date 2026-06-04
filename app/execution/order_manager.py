@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class OrderRequest:
@@ -63,14 +61,18 @@ class OrderManager:
 
         if request.order_type.upper() == "LIMIT":
             if request.price is None or request.price <= 0:
-                return OrderValidation(valid=False, reason="Limit price required and must be positive")
+                return OrderValidation(
+                    valid=False, reason="Limit price required and must be positive"
+                )
 
         if request.side.upper() not in ("BUY", "SELL"):
             return OrderValidation(valid=False, reason=f"Invalid side: {request.side}")
 
         return OrderValidation(valid=True)
 
-    def record_order(self, request: OrderRequest, status: str = "pending", error: str = "") -> OrderRecord:
+    def record_order(
+        self, request: OrderRequest, status: str = "pending", error: str = ""
+    ) -> OrderRecord:
         """Record a new order and return its record."""
         self._next_id += 1
         record = OrderRecord(
@@ -85,10 +87,19 @@ class OrderManager:
             error=error,
         )
         self._orders.append(record)
-        self._log.append(f"ORDER: {record.side} {record.quantity} {record.symbol} ({record.status})")
+        self._log.append(
+            f"ORDER: {record.side} {record.quantity} {record.symbol} ({record.status})"
+        )
         return record
 
-    def update_order(self, order_id: str, filled_quantity: float = 0.0, avg_fill_price: Optional[float] = None, fees: float = 0.0, status: str = "filled") -> None:
+    def update_order(
+        self,
+        order_id: str,
+        filled_quantity: float = 0.0,
+        avg_fill_price: Optional[float] = None,
+        fees: float = 0.0,
+        status: str = "filled",
+    ) -> None:
         """Update fill details for an existing order."""
         for order in self._orders:
             if order.id == order_id:
@@ -96,7 +107,9 @@ class OrderManager:
                 order.avg_fill_price = avg_fill_price
                 order.fees = fees
                 order.status = status
-                self._log.append(f"FILL: {order.side} {filled_quantity} {order.symbol} @ {avg_fill_price} ({status})")
+                self._log.append(
+                    f"FILL: {order.side} {filled_quantity} {order.symbol} @ {avg_fill_price} ({status})"
+                )
                 break
 
     def get_pending_orders(self) -> list[OrderRecord]:

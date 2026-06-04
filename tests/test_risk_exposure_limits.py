@@ -17,12 +17,8 @@ class TestCheckExposure:
         assert result.approved
 
     def test_rejects_when_asset_exposure_exceeded(self):
-        p = self._make_portfolio(
-            total=1000, cash=200, positions={"BTCUSDT": 300.0}
-        )
-        result = check_exposure(
-            p, "BTCUSDT", trade_value=60.0, max_asset_pct=0.35
-        )
+        p = self._make_portfolio(total=1000, cash=200, positions={"BTCUSDT": 300.0})
+        result = check_exposure(p, "BTCUSDT", trade_value=60.0, max_asset_pct=0.35)
         assert not result.approved
         assert "exceeds max" in result.rejection_reason.lower()
 
@@ -43,7 +39,9 @@ class TestCheckExposure:
             positions={"ETHUSDT": 200.0, "SOLUSDT": 200.0},
         )
         result = check_exposure(
-            p, "SOLUSDT", trade_value=60.0,
+            p,
+            "SOLUSDT",
+            trade_value=60.0,
             max_total_pct=0.60,
             max_altcoin_pct=0.40,
             altcoin_symbols={"ETHUSDT", "SOLUSDT"},
@@ -61,28 +59,37 @@ class TestCheckExposure:
         p = self._make_portfolio(total=1000, cash=600, positions={"BTCUSDT": 200.0})
         result = check_exposure(p, "BTCUSDT", trade_value=100.0)
         assert result.approved
-        assert abs(result.asset_exposure_after_pct - round(result.asset_exposure_after_pct, 2)) < 0.01
-        assert abs(result.total_exposure_after_pct - round(result.total_exposure_after_pct, 2)) < 0.01
+        assert (
+            abs(result.asset_exposure_after_pct - round(result.asset_exposure_after_pct, 2)) < 0.01
+        )
+        assert (
+            abs(result.total_exposure_after_pct - round(result.total_exposure_after_pct, 2)) < 0.01
+        )
 
     def test_short_position_negative_value(self):
-        p = self._make_portfolio(
-            total=1000, cash=1500, positions={"BTCUSDT": -500.0}
-        )
+        p = self._make_portfolio(total=1000, cash=1500, positions={"BTCUSDT": -500.0})
         result = check_exposure(
-            p, "ETHUSDT", trade_value=100.0,
-            max_asset_pct=0.50, max_total_pct=0.60,
+            p,
+            "ETHUSDT",
+            trade_value=100.0,
+            max_asset_pct=0.50,
+            max_total_pct=0.60,
         )
         assert result.approved
         assert result.current_total_exposure_pct == 50.0
 
     def test_exposure_with_short_uses_absolute_values(self):
         p = self._make_portfolio(
-            total=2000, cash=3000,
+            total=2000,
+            cash=3000,
             positions={"BTCUSDT": -1000.0, "ETHUSDT": 500.0},
         )
         result = check_exposure(
-            p, "SOLUSDT", trade_value=600.0,
-            max_asset_pct=0.70, max_total_pct=0.50,
+            p,
+            "SOLUSDT",
+            trade_value=600.0,
+            max_asset_pct=0.70,
+            max_total_pct=0.50,
         )
         assert not result.approved
         assert "total exposure" in result.rejection_reason.lower()

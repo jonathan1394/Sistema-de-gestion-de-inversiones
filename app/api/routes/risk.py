@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from fastapi import APIRouter, Body, Request
@@ -10,7 +9,6 @@ from fastapi import APIRouter, Body, Request
 from app.risk.exposure_limits import PortfolioState
 from app.risk.risk_manager import RiskManager, TradeProposal
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/risk", tags=["risk"])
 
 

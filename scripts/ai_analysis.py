@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 from pathlib import Path
 
 import pandas as pd
+from loguru import logger
 
 from app.ai.journal_analyzer import generate_journal_report
 from app.ai.market_summary import format_summary, generate_market_summary
@@ -17,8 +17,6 @@ from app.logging_setup import setup_logging
 from app.strategies.moving_average import MovingAverageCrossover
 from app.strategies.rsi_strategy import RSIStrategy
 from app.strategies.trend_following import TrendFollowing
-
-logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,8 +33,12 @@ def parse_args() -> argparse.Namespace:
     signal_parser = sub.add_parser("signals", help="Explain signals from a strategy")
     signal_parser.add_argument("--symbol", default="BTCUSDT", help="Trading pair symbol")
     signal_parser.add_argument("--interval", default="4h", help="Candle interval")
-    signal_parser.add_argument("--strategy", default="ma", choices=["ma", "rsi", "trend"],
-                               help="Strategy to generate signals")
+    signal_parser.add_argument(
+        "--strategy",
+        default="ma",
+        choices=["ma", "rsi", "trend"],
+        help="Strategy to generate signals",
+    )
     signal_parser.add_argument("--limit", type=int, default=200, help="Candles to load")
     signal_parser.add_argument("--settings", default="settings.yaml", help="Path to settings YAML")
 
@@ -62,14 +64,16 @@ def cmd_market(args: argparse.Namespace) -> None:
         logger.info("Not enough data for %s (%s). Download first.", args.symbol, args.interval)
         return
 
-    data = pd.DataFrame({
-        "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
-        "open": [c.open for c in candles],
-        "high": [c.high for c in candles],
-        "low": [c.low for c in candles],
-        "close": [c.close for c in candles],
-        "volume": [c.volume for c in candles],
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
+            "open": [c.open for c in candles],
+            "high": [c.high for c in candles],
+            "low": [c.low for c in candles],
+            "close": [c.close for c in candles],
+            "volume": [c.volume for c in candles],
+        }
+    )
 
     summary = generate_market_summary(data, symbol=args.symbol, period=args.interval)
     print(format_summary(summary))
@@ -91,14 +95,16 @@ def cmd_signals(args: argparse.Namespace) -> None:
         logger.info("Not enough data (got %d, need 50+).", len(candles))
         return
 
-    data = pd.DataFrame({
-        "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
-        "open": [c.open for c in candles],
-        "high": [c.high for c in candles],
-        "low": [c.low for c in candles],
-        "close": [c.close for c in candles],
-        "volume": [c.volume for c in candles],
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
+            "open": [c.open for c in candles],
+            "high": [c.high for c in candles],
+            "low": [c.low for c in candles],
+            "close": [c.close for c in candles],
+            "volume": [c.volume for c in candles],
+        }
+    )
 
     strategy_map = {
         "ma": MovingAverageCrossover,

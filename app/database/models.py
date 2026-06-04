@@ -3,13 +3,10 @@
 Centraliza los modelos de datos usados en todo el sistema.
 """
 
-import logging
-
 from app.backtesting.engine import BacktestResult, TradeRecord
 from app.data.market_data import Candle, DownloadResult
 from app.strategies.base_strategy import Signal, StrategyResult
 
-logger = logging.getLogger(__name__)
 __all__ = [
     "Candle",
     "DownloadResult",

@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/system", tags=["system"])
 
 

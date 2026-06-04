@@ -77,8 +77,10 @@ class TestTrailingStop:
 
     def test_with_atr_based_trailing(self):
         cfg = TrailingStopConfig(
-            activation_pct=0.01, trail_pct=0.02,
-            use_atr=True, atr_multiplier=2.0,
+            activation_pct=0.01,
+            trail_pct=0.02,
+            use_atr=True,
+            atr_multiplier=2.0,
         )
         ts = TrailingStop(cfg, entry_price=100, direction="long")
         ts.update(current_price=102, high=102, atr_value=1.5)

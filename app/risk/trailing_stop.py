@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import Optional
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
 class TrailingStopConfig:
     """Configuration for a trailing stop."""
+
     activation_pct: float = 0.01
     trail_pct: float = 0.02
     atr_multiplier: Optional[float] = None
@@ -21,6 +19,7 @@ class TrailingStopConfig:
 @dataclass
 class TrailingStopState:
     """Mutable state of a trailing stop during a position's lifetime."""
+
     active: bool = False
     peak_price: float = 0.0
     current_stop: float = 0.0
@@ -63,7 +62,10 @@ class TrailingStop:
         return self._update_short(current_price, low or current_price, atr_value)
 
     def _update_long(
-        self, price: float, high: float, atr_value: Optional[float] = None,
+        self,
+        price: float,
+        high: float,
+        atr_value: Optional[float] = None,
     ) -> float:
         entry = self.entry_price
         activation = self.config.activation_pct
@@ -91,7 +93,10 @@ class TrailingStop:
         return state.current_stop
 
     def _update_short(
-        self, price: float, low: float, atr_value: Optional[float] = None,
+        self,
+        price: float,
+        low: float,
+        atr_value: Optional[float] = None,
     ) -> float:
         entry = self.entry_price
         activation = self.config.activation_pct
@@ -108,11 +113,11 @@ class TrailingStop:
                     distance = atr_value * (self.config.atr_multiplier or 2.0)
                 else:
                     distance = state.peak_price * trail if state.peak_price > 0 else entry * trail
-                candidate = state.peak_price + distance if state.peak_price > 0 else entry + distance
+                candidate = (
+                    state.peak_price + distance if state.peak_price > 0 else entry + distance
+                )
                 state.current_stop = (
-                    min(state.current_stop, candidate)
-                    if state.current_stop != 0
-                    else candidate
+                    min(state.current_stop, candidate) if state.current_stop != 0 else candidate
                 )
             return state.current_stop
 
@@ -123,8 +128,6 @@ class TrailingStop:
 
         candidate = new_trough + distance
         state.current_stop = (
-            min(state.current_stop, candidate)
-            if state.current_stop != 0
-            else candidate
+            min(state.current_stop, candidate) if state.current_stop != 0 else candidate
         )
         return state.current_stop

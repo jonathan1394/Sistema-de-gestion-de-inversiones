@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 
 import pandas as pd
 
@@ -18,8 +17,6 @@ from app.strategies import (
     RSIStrategy,
     TrendFollowing,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def _build_strategy(name: str, params: dict, symbol: str):
@@ -41,18 +38,21 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run backtest from SQLite data")
     parser.add_argument("--symbol", required=True, help="Symbol like BTCUSDT")
     parser.add_argument("--interval", required=True, help="Interval like 1h, 4h, 1d")
-    parser.add_argument("--strategy", required=True,
-                        choices=["ma", "rsi", "trend", "dca", "rebalance"],
-                        help="Strategy to backtest")
+    parser.add_argument(
+        "--strategy",
+        required=True,
+        choices=["ma", "rsi", "trend", "dca", "rebalance"],
+        help="Strategy to backtest",
+    )
     parser.add_argument("--start-ms", type=int, default=None, help="Start time in ms")
     parser.add_argument("--end-ms", type=int, default=None, help="End time in ms")
     parser.add_argument("--limit", type=int, default=None, help="Max rows to read from DB")
     parser.add_argument("--capital", type=float, default=1000.0, help="Initial capital")
     parser.add_argument("--commission", type=float, default=0.001, help="Commission as decimal")
     parser.add_argument("--slippage", type=float, default=0.001, help="Slippage as decimal")
-    parser.add_argument("--output", default=None,
-                        choices=["report", "json", "trades"],
-                        help="Output format")
+    parser.add_argument(
+        "--output", default=None, choices=["report", "json", "trades"], help="Output format"
+    )
     parser.add_argument("--settings", default="settings.yaml", help="Path to settings YAML")
 
     parser.add_argument("--ma-fast", type=int, default=20, help="MA fast period")
@@ -64,7 +64,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dca-base", type=float, default=100.0, help="DCA base amount")
     parser.add_argument("--dca-interval", type=int, default=7, help="DCA interval in days")
     parser.add_argument("--rebalance-target", type=float, default=0.5, help="Rebalance target pct")
-    parser.add_argument("--rebalance-threshold", type=float, default=0.05, help="Rebalance threshold")
+    parser.add_argument(
+        "--rebalance-threshold", type=float, default=0.05, help="Rebalance threshold"
+    )
     return parser.parse_args()
 
 

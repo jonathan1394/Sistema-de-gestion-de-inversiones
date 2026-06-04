@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import sqlite3
 from dataclasses import dataclass
 from typing import List, Optional
@@ -13,7 +12,6 @@ from app.prospecting.db import Prospect
 from app.prospecting.market_decision import analyze_timeframe, compute_confluence
 from app.prospecting.scoring import get_recommendation
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class AssetRanking:

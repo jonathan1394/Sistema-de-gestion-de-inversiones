@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from fastapi import APIRouter, Body, Query, Request
 
 from app.alerts.channels import HISTORY_FILE, AlertManager, build_alert_manager
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
 

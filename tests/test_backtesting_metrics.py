@@ -25,8 +25,22 @@ def _result(equity_values: list[float], trades: list[TradeRecord]) -> BacktestRe
 
 def test_compute_metrics_with_winning_trades():
     trades = [
-        TradeRecord(symbol="BTCUSDT", side="BUY", entry_time=pd.Timestamp("2024-01-01"), pnl=100, pnl_pct=0.10, hold_bars=2),
-        TradeRecord(symbol="BTCUSDT", side="BUY", entry_time=pd.Timestamp("2024-01-02"), pnl=50, pnl_pct=0.05, hold_bars=1),
+        TradeRecord(
+            symbol="BTCUSDT",
+            side="BUY",
+            entry_time=pd.Timestamp("2024-01-01"),
+            pnl=100,
+            pnl_pct=0.10,
+            hold_bars=2,
+        ),
+        TradeRecord(
+            symbol="BTCUSDT",
+            side="BUY",
+            entry_time=pd.Timestamp("2024-01-02"),
+            pnl=50,
+            pnl_pct=0.05,
+            hold_bars=1,
+        ),
     ]
 
     metrics = compute_metrics(_result([1000, 1050, 1150], trades))
@@ -41,8 +55,22 @@ def test_compute_metrics_with_winning_trades():
 
 def test_compute_metrics_with_losses_and_drawdown():
     trades = [
-        TradeRecord(symbol="BTCUSDT", side="BUY", entry_time=pd.Timestamp("2024-01-01"), pnl=-100, pnl_pct=-0.10, hold_bars=1),
-        TradeRecord(symbol="BTCUSDT", side="BUY", entry_time=pd.Timestamp("2024-01-02"), pnl=-50, pnl_pct=-0.05, hold_bars=1),
+        TradeRecord(
+            symbol="BTCUSDT",
+            side="BUY",
+            entry_time=pd.Timestamp("2024-01-01"),
+            pnl=-100,
+            pnl_pct=-0.10,
+            hold_bars=1,
+        ),
+        TradeRecord(
+            symbol="BTCUSDT",
+            side="BUY",
+            entry_time=pd.Timestamp("2024-01-02"),
+            pnl=-50,
+            pnl_pct=-0.05,
+            hold_bars=1,
+        ),
     ]
 
     metrics = compute_metrics(_result([1000, 500, 600], trades))

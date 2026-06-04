@@ -1,10 +1,14 @@
-"""Alembic environment configuration — resolves DB path from app config."""
+"""Alembic environment configuration — resolves DB path from app config.
+
+Falls back to the URL in alembic.ini when settings.yaml is not available.
+"""
 
 from __future__ import annotations
 
 import sys
 from logging.config import fileConfig
 from pathlib import Path
+from typing import Optional
 
 from sqlalchemy import engine_from_config, pool
 
@@ -14,8 +18,6 @@ from alembic import context
 PROJECT_ROOT = Path(__file__).parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-
-from app.config import load_settings  # noqa: E402
 
 config = context.config
 
@@ -27,8 +29,16 @@ if config.config_file_name is not None:
 current_url = config.get_main_option("sqlalchemy.url", "")
 _DEFAULT_PLACEHOLDER = "driver://user:pass@localhost/dbname"
 if not current_url or current_url == _DEFAULT_PLACEHOLDER:
-    settings = load_settings()
-    db_url = f"sqlite:///{settings.database.path}"
+    db_url: Optional[str] = None
+    try:
+        from app.config import load_settings  # noqa: E402
+
+        settings = load_settings()
+        db_url = f"sqlite:///{settings.database.path}"
+    except Exception:
+        pass
+    if db_url is None:
+        db_url = current_url or _DEFAULT_PLACEHOLDER
     config.set_main_option("sqlalchemy.url", db_url)
 
 target_metadata = None

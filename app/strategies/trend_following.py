@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import logging
-
 import pandas as pd
 
 from app.strategies.base_strategy import BaseStrategy, Signal, StrategyResult
 from app.strategies.rsi_strategy import compute_rsi
 
-logger = logging.getLogger(__name__)
 
 class TrendFollowing(BaseStrategy):
     """Buy when price is above long EMA, EMAs are bullish, RSI is in range, and volume is elevated."""
@@ -63,26 +60,30 @@ class TrendFollowing(BaseStrategy):
         signals: list[Signal] = []
         for idx in buy_idx:
             price = df.loc[idx, "close"]
-            signals.append(Signal(
-                symbol=symbol,
-                timestamp=pd.Timestamp(idx),
-                price=price,
-                action="BUY",
-                reason="Trend up, EMAs bullish, RSI in range, volume above avg",
-                confidence=self.confidence,
-                risk_score=self.risk_score,
-                stop_loss=price * (1 - self.stop_loss_pct),
-                take_profit=price * (1 + self.take_profit_pct),
-            ))
+            signals.append(
+                Signal(
+                    symbol=symbol,
+                    timestamp=pd.Timestamp(idx),
+                    price=price,
+                    action="BUY",
+                    reason="Trend up, EMAs bullish, RSI in range, volume above avg",
+                    confidence=self.confidence,
+                    risk_score=self.risk_score,
+                    stop_loss=price * (1 - self.stop_loss_pct),
+                    take_profit=price * (1 + self.take_profit_pct),
+                )
+            )
         for idx in sell_idx:
-            signals.append(Signal(
-                symbol=symbol,
-                timestamp=pd.Timestamp(idx),
-                price=df.loc[idx, "close"],
-                action="SELL",
-                reason="Price closed below long-term EMA (trend broken)",
-                confidence=self.confidence,
-                risk_score=self.risk_score,
-            ))
+            signals.append(
+                Signal(
+                    symbol=symbol,
+                    timestamp=pd.Timestamp(idx),
+                    price=df.loc[idx, "close"],
+                    action="SELL",
+                    reason="Price closed below long-term EMA (trend broken)",
+                    confidence=self.confidence,
+                    risk_score=self.risk_score,
+                )
+            )
 
         return StrategyResult(signals=signals)

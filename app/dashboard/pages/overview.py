@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-import logging
-
 import pandas as pd
 import streamlit as st
+from loguru import logger
 
 from app.config import load_settings
 from app.dashboard.portfolio_state import get_portfolio_value
 from app.data.market_data import get_candles
 from app.database.connection import get_connection
-
-logger = logging.getLogger(__name__)
 
 
 def _render_market_header(candles_4h: list, candles_1d: list) -> None:
@@ -29,7 +26,9 @@ def _render_market_header(candles_4h: list, candles_1d: list) -> None:
     high_30d = max(c.high for c in candles_1d) if candles_1d else 0
     low_30d = min(c.low for c in candles_1d) if candles_1d else 0
     range_pct = (high_30d - low_30d) / low_30d * 100 if low_30d else 0
-    col3.metric("Rango 30d", f"${low_30d:,.0f} - ${high_30d:,.0f}", f"{range_pct:.1f}%", border=True)
+    col3.metric(
+        "Rango 30d", f"${low_30d:,.0f} - ${high_30d:,.0f}", f"{range_pct:.1f}%", border=True
+    )
     col4.metric("Valor Cartera", f"${get_portfolio_value():.2f}", border=True)
 
 
@@ -58,10 +57,12 @@ def _render_market_chart(candles_4h: list) -> None:
     if not candles_4h:
         st.info("Descarga datos con scripts/download_historical.py")
         return
-    df = pd.DataFrame({
-        "timestamp": pd.to_datetime([c.open_time for c in candles_4h], unit="ms", utc=True),
-        "close": [c.close for c in candles_4h],
-    })
+    df = pd.DataFrame(
+        {
+            "timestamp": pd.to_datetime([c.open_time for c in candles_4h], unit="ms", utc=True),
+            "close": [c.close for c in candles_4h],
+        }
+    )
     st.line_chart(df, x="timestamp", y="close")
 
 
@@ -93,7 +94,10 @@ def render() -> None:
     """Render high-level market, portfolio, and system overview panels."""
     try:
         st.markdown('<div class="page-title">Dashboard Overview</div>', unsafe_allow_html=True)
-        st.markdown('<div class="page-subtitle">Resumen del estado del sistema y cartera.</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="page-subtitle">Resumen del estado del sistema y cartera.</div>',
+            unsafe_allow_html=True,
+        )
 
         config = load_settings()
         conn = get_connection(config.database.path)

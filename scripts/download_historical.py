@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import argparse
-import logging
+
+from loguru import logger
 
 from app.config import load_settings
 from app.data.binance_client import BinanceClient
@@ -9,8 +10,6 @@ from app.data.market_data import download_and_store, download_and_store_paginate
 from app.database.connection import get_connection
 from app.database.migrations import run_migrations
 from app.logging_setup import setup_logging
-
-logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -73,7 +72,9 @@ def main() -> None:
             limit=min(args.limit, 1000),
         )
 
-    logger.info("Downloaded %d rows for %s %s", result.rows_downloaded, result.symbol, result.interval)
+    logger.info(
+        "Downloaded %d rows for %s %s", result.rows_downloaded, result.symbol, result.interval
+    )
     if result.validation_errors:
         logger.warning("Validation warnings:")
         for warning in result.validation_errors:

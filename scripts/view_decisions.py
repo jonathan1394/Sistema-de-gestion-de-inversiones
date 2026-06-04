@@ -4,14 +4,11 @@
 from __future__ import annotations
 
 import argparse
-import logging
 
 from app.config import load_settings
 from app.database.connection import get_connection
 from app.governance.decision_log import get_recent_decisions
 from app.logging_setup import setup_logging
-
-logger = logging.getLogger(__name__)
 
 
 def format_decision(d) -> str:

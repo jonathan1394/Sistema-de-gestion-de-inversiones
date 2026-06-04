@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -17,7 +16,6 @@ from app.strategies.rebalance import RebalanceStrategy
 from app.strategies.rsi_strategy import RSIStrategy
 from app.strategies.trend_following import TrendFollowing
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class StrategyMetrics:
@@ -168,22 +166,24 @@ def compare_across_assets(
 
             for sr in asset_result.strategy_results:
                 m = sr.metrics
-                ranking_entries.append({
-                    "symbol": symbol,
-                    "interval": interval,
-                    "strategy": sr.strategy_name,
-                    "roi_pct": round(m.roi_pct, 2),
-                    "sharpe_ratio": round(m.sharpe_ratio, 2),
-                    "sortino_ratio": round(m.sortino_ratio, 2),
-                    "max_drawdown_pct": round(m.max_drawdown_pct, 2),
-                    "profit_factor": round(m.profit_factor, 2),
-                    "win_rate": round(m.win_rate, 1),
-                    "total_trades": m.total_trades,
-                    "final_capital": round(m.final_capital, 2),
-                    "passed_validation": sr.passed_validation,
-                    "cagr_pct": round(m.cagr_pct, 2),
-                    "payoff_ratio": round(m.payoff_ratio, 2),
-                })
+                ranking_entries.append(
+                    {
+                        "symbol": symbol,
+                        "interval": interval,
+                        "strategy": sr.strategy_name,
+                        "roi_pct": round(m.roi_pct, 2),
+                        "sharpe_ratio": round(m.sharpe_ratio, 2),
+                        "sortino_ratio": round(m.sortino_ratio, 2),
+                        "max_drawdown_pct": round(m.max_drawdown_pct, 2),
+                        "profit_factor": round(m.profit_factor, 2),
+                        "win_rate": round(m.win_rate, 1),
+                        "total_trades": m.total_trades,
+                        "final_capital": round(m.final_capital, 2),
+                        "passed_validation": sr.passed_validation,
+                        "cagr_pct": round(m.cagr_pct, 2),
+                        "payoff_ratio": round(m.payoff_ratio, 2),
+                    }
+                )
 
     ranking_entries.sort(
         key=lambda e: (

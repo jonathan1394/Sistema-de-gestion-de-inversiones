@@ -3,13 +3,12 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.logging_setup import setup_logging
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+from app.logging_setup import setup_logging
 
 
 @dataclass
@@ -43,9 +42,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--b", default=None, help="Path to second metrics.json (legacy mode)")
     parser.add_argument("--w-sharpe", type=float, default=1.0, help="Weight for Sharpe")
     parser.add_argument("--w-drawdown", type=float, default=1.0, help="Weight for Drawdown")
-    parser.add_argument("--w-profit-factor", type=float, default=1.0, help="Weight for Profit Factor")
+    parser.add_argument(
+        "--w-profit-factor", type=float, default=1.0, help="Weight for Profit Factor"
+    )
     parser.add_argument("--min-trades", type=int, default=0, help="Minimum trade count filter")
-    parser.add_argument("--min-sharpe", type=float, default=float("-inf"), help="Minimum Sharpe filter")
+    parser.add_argument(
+        "--min-sharpe", type=float, default=float("-inf"), help="Minimum Sharpe filter"
+    )
     parser.add_argument("--export-json", default=None, help="Export ranking to JSON file")
     parser.add_argument("--export-csv", default=None, help="Export ranking to CSV file")
     return parser.parse_args()
@@ -162,9 +165,7 @@ def print_ranking(
         for idx, (snap, score) in enumerate(ranked_pairs, start=1)
     ]
     print("Weighted ranking:")
-    print(
-        f"(weights: sharpe={w_sharpe}, drawdown={w_drawdown}, profit_factor={w_profit_factor})"
-    )
+    print(f"(weights: sharpe={w_sharpe}, drawdown={w_drawdown}, profit_factor={w_profit_factor})")
     for row in ranked:
         print(f"{row.rank}. {row.snapshot.name}  score={row.score:.2f}  file={row.snapshot.path}")
     return ranked

@@ -48,7 +48,9 @@ def test_stop_loss_price_invalid_rejected():
 
 
 def test_default_stop_loss_used_when_none_provided():
-    mgr = RiskManager(circuit_breakers=CircuitBreakers(kill_switch=False), default_stop_loss_pct=0.05)
+    mgr = RiskManager(
+        circuit_breakers=CircuitBreakers(kill_switch=False), default_stop_loss_pct=0.05
+    )
     decision = mgr.evaluate(_proposal(), _portfolio())
     assert decision.approved
     assert decision.stop_loss is not None
@@ -57,7 +59,9 @@ def test_default_stop_loss_used_when_none_provided():
 
 
 def test_exposure_limit_blocks():
-    mgr = RiskManager(circuit_breakers=CircuitBreakers(kill_switch=False), max_asset_pct=0.01, max_total_pct=0.01)
+    mgr = RiskManager(
+        circuit_breakers=CircuitBreakers(kill_switch=False), max_asset_pct=0.01, max_total_pct=0.01
+    )
     portfolio = PortfolioState(
         total_capital=1000,
         cash=1000,
@@ -92,8 +96,11 @@ def test_zero_capital_rejected():
 def test_low_confidence_adds_warning():
     mgr = RiskManager(circuit_breakers=CircuitBreakers(kill_switch=False))
     proposal = TradeProposal(
-        symbol="BTCUSDT", direction="long", entry_price=50000,
-        capital=1000, confidence=0.2,
+        symbol="BTCUSDT",
+        direction="long",
+        entry_price=50000,
+        capital=1000,
+        confidence=0.2,
     )
     decision = mgr.evaluate(proposal, _portfolio(), stop_loss_price=49000)
     assert decision.approved
@@ -125,7 +132,9 @@ def test_evaluation_order_sl_before_ps():
 def test_evaluation_order_ps_before_el():
     """When PS fails (invalid direction), EL must be None."""
     mgr = RiskManager(circuit_breakers=CircuitBreakers(kill_switch=False))
-    short_proposal = TradeProposal(symbol="BTCUSDT", direction="short", entry_price=50000, capital=1000)
+    short_proposal = TradeProposal(
+        symbol="BTCUSDT", direction="short", entry_price=50000, capital=1000
+    )
     decision = mgr.evaluate(short_proposal, _portfolio(), stop_loss_price=49000)
     assert decision.position_size is not None
     assert decision.position_size.rejected
@@ -135,7 +144,9 @@ def test_evaluation_order_ps_before_el():
 
 def test_stop_loss_pct_parameter():
     """Passing stop_loss_pct explicitly should be used over default."""
-    mgr = RiskManager(circuit_breakers=CircuitBreakers(kill_switch=False), default_stop_loss_pct=0.02)
+    mgr = RiskManager(
+        circuit_breakers=CircuitBreakers(kill_switch=False), default_stop_loss_pct=0.02
+    )
     decision = mgr.evaluate(_proposal(), _portfolio(), stop_loss_pct=0.05)
     assert decision.approved
     expected = 50000 * (1 - 0.05)
@@ -241,8 +252,11 @@ def test_high_confidence_no_warning():
     """High confidence (>0.3) should not generate warning."""
     mgr = RiskManager(circuit_breakers=CircuitBreakers(kill_switch=False))
     proposal = TradeProposal(
-        symbol="BTCUSDT", direction="long", entry_price=50000,
-        capital=1000, confidence=0.8,
+        symbol="BTCUSDT",
+        direction="long",
+        entry_price=50000,
+        capital=1000,
+        confidence=0.8,
     )
     decision = mgr.evaluate(proposal, _portfolio(), stop_loss_price=49000)
     assert decision.approved

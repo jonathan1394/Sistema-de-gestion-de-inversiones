@@ -7,7 +7,6 @@ retrieve them if needed.
 from __future__ import annotations
 
 import json
-import logging
 import sqlite3
 import time
 import uuid
@@ -17,7 +16,6 @@ from typing import Any, Dict, List, Optional
 from app.config import AppConfig, load_settings
 from app.database.connection import get_connection
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class DecisionLogEntry:

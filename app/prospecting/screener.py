@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import sqlite3
 from dataclasses import dataclass, field
 from typing import Optional
@@ -23,7 +22,6 @@ from app.strategies.moving_average import MovingAverageCrossover
 from app.strategies.rsi_strategy import RSIStrategy
 from app.strategies.trend_following import TrendFollowing
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class ScreenedAsset:
@@ -234,9 +232,7 @@ class ProspectScreener:
     def _candles_to_dataframe(self, candles: list) -> pd.DataFrame:
         return pd.DataFrame(
             {
-                "timestamp": pd.to_datetime(
-                    [c.open_time for c in candles], unit="ms", utc=True
-                ),
+                "timestamp": pd.to_datetime([c.open_time for c in candles], unit="ms", utc=True),
                 "open": [c.open for c in candles],
                 "high": [c.high for c in candles],
                 "low": [c.low for c in candles],

@@ -5,7 +5,6 @@ Keeps the ``run_migrations()`` entrypoint so existing callers don't break.
 
 from __future__ import annotations
 
-import logging
 import sqlite3
 from pathlib import Path
 from typing import Optional
@@ -13,8 +12,6 @@ from typing import Optional
 from alembic.config import Config
 
 from alembic import command
-
-logger = logging.getLogger(__name__)
 
 # Keep raw statements as fallback for in-memory databases (tests).
 _SCHEMA_STATEMENTS = [

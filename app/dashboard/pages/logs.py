@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import json
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+from loguru import logger
 
 LOGS_FILE = Path("data/system_logs.jsonl")
-
-logger = logging.getLogger(__name__)
 
 
 def _append_log(level: str, module: str, message: str) -> None:

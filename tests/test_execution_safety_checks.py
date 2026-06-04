@@ -101,9 +101,7 @@ class TestCheckOrderSize:
         assert not result.safe
 
     def test_rejects_oversized_order(self):
-        result = check_order_size(
-            quantity=1.0, price=50000, capital=1000, max_position_pct=0.03
-        )
+        result = check_order_size(quantity=1.0, price=50000, capital=1000, max_position_pct=0.03)
         assert not result.safe
         assert "exceeds max" in result.reason
 

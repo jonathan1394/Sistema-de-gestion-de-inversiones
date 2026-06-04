@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import logging
 from pathlib import Path
 
 import pandas as pd
@@ -19,8 +18,6 @@ from app.database.connection import get_connection
 from app.logging_setup import setup_logging
 from app.strategies.moving_average import MovingAverageCrossover
 
-logger = logging.getLogger(__name__)
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run moving average backtest from SQLite data")
@@ -32,7 +29,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fast", type=int, default=20, help="Fast EMA period")
     parser.add_argument("--slow", type=int, default=50, help="Slow EMA period")
     parser.add_argument("--capital", type=float, default=1000.0, help="Initial capital")
-    parser.add_argument("--commission", type=float, default=0.001, help="Commission percent decimal")
+    parser.add_argument(
+        "--commission", type=float, default=0.001, help="Commission percent decimal"
+    )
     parser.add_argument("--slippage", type=float, default=0.001, help="Slippage percent decimal")
     parser.add_argument(
         "--export-dir",

@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class PositionSizeResult:
@@ -31,25 +29,39 @@ def calculate_position_size(
     """Calculate position quantity and value from entry, stop-loss, and capital."""
     if capital <= 0:
         return PositionSizeResult(
-            position_size=0, position_value=0, risk_amount=0, risk_pct=0,
-            entry_price=entry_price, stop_loss=stop_loss,
+            position_size=0,
+            position_value=0,
+            risk_amount=0,
+            risk_pct=0,
+            entry_price=entry_price,
+            stop_loss=stop_loss,
             max_risk_pct=risk_per_trade_pct,
-            rejected=True, rejection_reason="Capital must be positive",
+            rejected=True,
+            rejection_reason="Capital must be positive",
         )
 
     if entry_price <= 0 or stop_loss <= 0:
         return PositionSizeResult(
-            position_size=0, position_value=0, risk_amount=0, risk_pct=0,
-            entry_price=entry_price, stop_loss=stop_loss,
+            position_size=0,
+            position_value=0,
+            risk_amount=0,
+            risk_pct=0,
+            entry_price=entry_price,
+            stop_loss=stop_loss,
             max_risk_pct=risk_per_trade_pct,
-            rejected=True, rejection_reason="Prices must be positive",
+            rejected=True,
+            rejection_reason="Prices must be positive",
         )
 
     if direction == "long":
         if stop_loss >= entry_price:
             return PositionSizeResult(
-                position_size=0, position_value=0, risk_amount=0, risk_pct=0,
-                entry_price=entry_price, stop_loss=stop_loss,
+                position_size=0,
+                position_value=0,
+                risk_amount=0,
+                risk_pct=0,
+                entry_price=entry_price,
+                stop_loss=stop_loss,
                 max_risk_pct=risk_per_trade_pct,
                 rejected=True,
                 rejection_reason="Stop-loss must be below entry for long",
@@ -58,8 +70,12 @@ def calculate_position_size(
     else:
         if stop_loss <= entry_price:
             return PositionSizeResult(
-                position_size=0, position_value=0, risk_amount=0, risk_pct=0,
-                entry_price=entry_price, stop_loss=stop_loss,
+                position_size=0,
+                position_value=0,
+                risk_amount=0,
+                risk_pct=0,
+                entry_price=entry_price,
+                stop_loss=stop_loss,
                 max_risk_pct=risk_per_trade_pct,
                 rejected=True,
                 rejection_reason="Stop-loss must be above entry for short",

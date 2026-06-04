@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Callable, Optional
@@ -10,7 +9,6 @@ from typing import Callable, Optional
 from app.alerts.channels import Alert, AlertManager
 from app.strategies.base_strategy import Signal
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class AlertRule:
@@ -57,6 +55,7 @@ def price_alert_rule(
     below: Optional[float] = None,
 ) -> AlertRule:
     """Create threshold-based price alert rule."""
+
     def check() -> Optional[Alert]:
         """Evaluate current price against configured thresholds."""
         price = current_price_fn()
@@ -104,7 +103,12 @@ def signal_alert_rule(
                     category="SIGNAL",
                     title=f"{s.action} {symbol}",
                     message=f"{s.reason} at ${s.price:.2f} (confidence: {s.confidence:.0%})",
-                    data={"symbol": symbol, "action": s.action, "price": s.price, "reason": s.reason},
+                    data={
+                        "symbol": symbol,
+                        "action": s.action,
+                        "price": s.price,
+                        "reason": s.reason,
+                    },
                 )
         return None
 
@@ -117,6 +121,7 @@ def risk_alert_rule(
     max_drawdown: float = 20.0,
 ) -> AlertRule:
     """Create drawdown risk alert rule with warning and error levels."""
+
     def check() -> Optional[Alert]:
         """Evaluate current drawdown against warning/error thresholds."""
         dd = drawdown_fn()
