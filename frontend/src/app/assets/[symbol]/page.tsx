@@ -107,6 +107,12 @@ export default async function AssetDetailPage({ params, searchParams }: Props) {
 
       <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
         <Link
+          href={`/investment-review?symbol=${sym}&interval=${encodeURIComponent(interval)}`}
+          style={{ border: "1px solid #2563eb", borderRadius: 10, padding: "8px 16px", fontWeight: 700, background: "#2563eb", color: "white", textDecoration: "none" }}
+        >
+          Investment review
+        </Link>
+        <Link
           href={`/backtest?symbol=${sym}`}
           style={{ border: "1px solid #111827", borderRadius: 10, padding: "8px 16px", fontWeight: 700, background: "#111827", color: "white", textDecoration: "none" }}
         >

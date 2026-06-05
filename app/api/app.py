@@ -38,6 +38,7 @@ def create_app() -> FastAPI:
     from app.api.routes import alerts as alerts_routes
     from app.api.routes import backtest as backtest_routes
     from app.api.routes import decisions as decisions_routes
+    from app.api.routes import evaluation as evaluation_routes
     from app.api.routes import prospecting as prospecting_routes
     from app.api.routes import risk as risk_routes
 
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
     app.include_router(prospecting_routes.router, prefix=api_prefix)
     app.include_router(decisions_routes.router, prefix=api_prefix)
     app.include_router(alerts_routes.router, prefix=api_prefix)
+    app.include_router(evaluation_routes.router, prefix=api_prefix)
 
     # Dashboard integration routes
     from app.api.routes import journal as journal_routes

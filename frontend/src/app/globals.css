@@ -245,6 +245,12 @@ button {
   font-size: 0.9rem;
 }
 
+.panel-title-inline {
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -458,6 +464,90 @@ button {
   line-height: 1.5;
 }
 
+.review-banner {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border-radius: 22px;
+  border: 1px solid var(--border-strong);
+  background:
+    linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(52, 211, 153, 0.06)),
+    rgba(10, 19, 34, 0.82);
+}
+
+.review-banner-label {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 800;
+  color: #8fb4ff;
+}
+
+.review-banner-title {
+  margin-top: 8px;
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.review-banner-text {
+  margin-top: 8px;
+  max-width: 70ch;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.review-banner-pills {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.review-thresholds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.review-threshold {
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.review-threshold-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.universe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.universe-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
 @media (max-width: 900px) {
   .topbar-inner,
   .page {
@@ -476,6 +566,14 @@ button {
   }
 
   .nav-links {
+    justify-content: flex-start;
+  }
+
+  .review-banner {
+    flex-direction: column;
+  }
+
+  .review-banner-pills {
     justify-content: flex-start;
   }
 }

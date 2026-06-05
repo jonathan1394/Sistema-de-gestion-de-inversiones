@@ -65,3 +65,80 @@ def test_api_risk_evaluate_contract() -> None:
     assert body["status"] == "ok"
     assert "approved" in body["data"]
     assert "rejection_reason" in body["data"]
+
+
+def test_api_add_universe_symbol(tmp_path, monkeypatch) -> None:
+    settings_file = tmp_path / "settings.yaml"
+    settings_file.write_text(
+        """
+app:
+  mode: analysis
+  kill_switch: true
+database:
+  path: ./data/test.db
+binance:
+  base_url: https://api.binance.com
+  request_timeout_seconds: 20
+  max_retries: 3
+  retry_delay_seconds: 1.5
+symbols:
+  - BTCUSDT
+timeframes:
+  - 1h
+  - 4h
+  - 1d
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    with TestClient(create_app()) as client:
+        resp = client.post("/api/v1/config/universe-symbol", json={"symbol": "adausdt"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["data"]["symbol"] == "ADAUSDT"
+    assert body["data"]["added"] is True
+    assert "ADAUSDT" in body["data"]["symbols"]
+    assert "ADAUSDT" in settings_file.read_text(encoding="utf-8")
+
+
+def test_api_remove_universe_symbol(tmp_path, monkeypatch) -> None:
+    settings_file = tmp_path / "settings.yaml"
+    settings_file.write_text(
+        """
+app:
+  mode: analysis
+  kill_switch: true
+database:
+  path: ./data/test.db
+binance:
+  base_url: https://api.binance.com
+  request_timeout_seconds: 20
+  max_retries: 3
+  retry_delay_seconds: 1.5
+symbols:
+  - BTCUSDT
+  - ADAUSDT
+timeframes:
+  - 1h
+  - 4h
+  - 1d
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    with TestClient(create_app()) as client:
+        resp = client.post("/api/v1/config/universe-symbol/remove", json={"symbol": "adausdt"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["data"]["symbol"] == "ADAUSDT"
+    assert body["data"]["removed"] is True
+    assert "ADAUSDT" not in body["data"]["symbols"]
+    assert "- ADAUSDT" not in settings_file.read_text(encoding="utf-8")

@@ -1,4 +1,4 @@
-import { Badge, Card, Page, Panel, SectionTitle, TableWrap, thStyle, tdStyle } from "@/app/components/ui";
+import { Card, Page, Panel, SectionTitle, TableWrap, thStyle, tdStyle } from "@/app/components/ui";
 import { apiGet, apiPost } from "@/lib/api";
 import type { PortfolioTrade } from "@/types";
 

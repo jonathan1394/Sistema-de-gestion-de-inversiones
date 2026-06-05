@@ -185,11 +185,38 @@ Variables recomendadas:
 
 - `NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000/api/v1`
 
+Pantallas clave para evaluacion:
+
+- `/investment-review`: vista unificada de datos, score, backtest y riesgo por activo
+
 ### Docker Compose
 
 ```bash
 docker compose up --build
 ```
+
+Para levantar solo la API y el frontend web:
+
+```bash
+./scripts/run_web_stack.sh
+```
+
+Comandos utiles:
+
+- `./scripts/run_web_stack.sh up --detached`: levanta `api` y `web` en background
+- `./scripts/run_web_stack.sh logs`: sigue logs de `api` y `web`
+- `./scripts/run_web_stack.sh ps`: muestra estado de contenedores
+- `./scripts/run_web_stack.sh down`: baja el stack Compose
+
+### Rutina Oficial de Evaluacion
+
+```bash
+python -m quality.quality_agent --check-all
+python -m scripts.run_prospecting scan-all
+python -m scripts.run_investment_review
+```
+
+Protocolo detallado: `docs/protocolo_evaluacion_inversiones.md`
 
 Servicios incluidos:
 

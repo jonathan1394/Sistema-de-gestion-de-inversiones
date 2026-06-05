@@ -8,6 +8,8 @@ type SystemHealth = { ok: boolean };
 const quickLinks = [
   { href: "/overview", title: "Overview", text: "Resumen de modo, mercado y contexto operativo." },
   { href: "/market", title: "Market", text: "Consulta precio y velas con filtros rápidos." },
+  { href: "/universe", title: "Universe", text: "Administra el universo oficial de simbolos evaluables." },
+  { href: "/investment-review", title: "Review", text: "Vista unificada de datos, ranking, backtest y riesgo por activo." },
   { href: "/prospects", title: "Prospects", text: "Ranking y oportunidades para vigilar o activar." },
   { href: "/portfolio", title: "Portfolio", text: "Posiciones paper, snapshots y trazabilidad." },
   { href: "/risk", title: "Risk", text: "Evalúa operaciones antes de ejecutarlas." },

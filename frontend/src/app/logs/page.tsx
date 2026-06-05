@@ -1,4 +1,4 @@
-import { Badge, Page, Panel, SectionTitle, thStyle, tdStyle } from "@/app/components/ui";
+import { Badge, Page, SectionTitle, thStyle } from "@/app/components/ui";
 import { apiGet } from "@/lib/api";
 import type { DecisionEntry, AlertEntry } from "@/types";
 
